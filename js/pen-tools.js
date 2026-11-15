@@ -202,16 +202,34 @@
         w: logicalWidth,
         p: [pointFromEvent(event)]
       };
-      root.classList.add('pen-input-active');
+      setPageDragLock(true);
       try { root.setPointerCapture(event.pointerId); } catch (ignore) {}
       drawDot(activeStroke, activeStroke.p[0]);
       /* 펜 입력은 pointermove/getCoalescedEvents 단일 경로로 수집합니다. */
     }
     function onPointerMove(event) {
       if (!activeStroke || event.pointerId !== activePointerId) return;
+      /* 펜 이동 중 브라우저가 페이지 드래그/선택 제스처를 시작하지 못하게 합니다. */
+      if (event.cancelable) event.preventDefault();
       /* 한 가지 표준 스트림만 사용합니다. getCoalescedEvents()가 프레임 사이의
          실제 펜 좌표를 묶어서 제공하므로 별도 이동 이벤트와 섞지 않습니다. */
       appendSamples(event);
+    }
+    function preventTouchPan(event) {
+      /* 펜을 대고 쓰는 동안 겹쳐 들어오는 손가락 스크롤/팜 드래그를 차단합니다. */
+      if (activeStroke && event.cancelable) event.preventDefault();
+    }
+    function preventNativeDrag(event) {
+      if (activeStroke && event.cancelable) event.preventDefault();
+    }
+    function setPageDragLock(locked) {
+      var html = document.documentElement;
+      var body = document.body;
+      [html, body].forEach(function (node) {
+        if (!node || !node.classList) return;
+        node.classList.toggle('pen-drawing-active', !!locked);
+      });
+      root.classList.toggle('pen-input-active', !!locked);
     }
     function finish(event) {
       if (!activeStroke || (event && event.pointerId !== activePointerId)) return;
@@ -220,7 +238,7 @@
       activeStroke = null;
       activePointerId = null;
 
-      root.classList.remove('pen-input-active');
+      setPageDragLock(false);
       getStrokes().push(completed);
       redoStack = [];
       /* 캔버스에는 획이 이미 증분 렌더링되어 있으므로 전체 redraw 없이 저장만 합니다. */
@@ -233,7 +251,7 @@
       activeStroke = null;
       activePointerId = null;
 
-      root.classList.remove('pen-input-active');
+      setPageDragLock(false);
       if (interrupted.p.length) {
         getStrokes().push(interrupted);
         redoStack = [];
@@ -247,6 +265,8 @@
     document.addEventListener('pointermove', onPointerMove, capture);
     document.addEventListener('pointerup', finish, true);
     document.addEventListener('pointercancel', cancel, true);
+    document.addEventListener('touchmove', preventTouchPan, capture);
+    document.addEventListener('dragstart', preventNativeDrag, true);
     /* 포인터 캡처가 해제되어도 실제 pointerup 또는 pointercancel 전까지 추적을 유지합니다. */
 
     root.querySelectorAll('[data-penmode]').forEach(function (button) {
@@ -297,6 +317,9 @@
       document.removeEventListener('pointermove', onPointerMove, true);
       document.removeEventListener('pointerup', finish, true);
       document.removeEventListener('pointercancel', cancel, true);
+      document.removeEventListener('touchmove', preventTouchPan, true);
+      document.removeEventListener('dragstart', preventNativeDrag, true);
+      setPageDragLock(false);
       try { if (activePointerId !== null) root.releasePointerCapture(activePointerId); } catch (ignore) {}
       if (canvas.parentNode === root) root.removeChild(canvas);
       root.classList.remove('pen-surface-root', 'pen-input-active');
