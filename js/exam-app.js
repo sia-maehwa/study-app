@@ -7,6 +7,7 @@
   var EXAM_TIME = 30 * 60; /* 수능 사회탐구 30분 */
   var CHOICE_LABELS = ['①', '②', '③', '④', '⑤'];
   var HIST_KEY = 'socmul_exam_hist_v1';
+  var EXAM_WRONG_KEY = 'study_exam_wrong_v1';
   var NODOYO_KEY = 'socmul_nodopyo_v1';
   var PEN_KEY = 'socmul_pen_v1';
   var PEN_COLOR_KEY = 'socmul_pen_color_v1';
@@ -85,6 +86,58 @@
     var all = window.Store.getJSON(PEN_KEY, {});
     all[state.examId] = state.strokes;
     window.Store.setJSON(PEN_KEY, all);
+  }
+
+  function loadExamWrongNotes() {
+    var records = window.Store ? window.Store.getJSON(EXAM_WRONG_KEY, {}) : {};
+    return records && typeof records === 'object' && !Array.isArray(records) ? records : {};
+  }
+  function saveExamWrongNotes(records) {
+    if (window.Store) window.Store.setJSON(EXAM_WRONG_KEY, records);
+  }
+  function updateExamWrongNotes(exam) {
+    var records = loadExamWrongNotes();
+    var now = Date.now();
+    includedIdx(exam).forEach(function (index) {
+      var question = exam.questions[index];
+      var selected = state.answers[index];
+      var key = exam.id + ':' + question.n;
+      if (selected === question.ans) {
+        delete records[key];
+        return;
+      }
+      var previous = records[key];
+      records[key] = {
+        key: key,
+        examId: exam.id,
+        examLabel: exam.label,
+        questionNumber: question.n,
+        selectedIndex: selected === undefined ? null : selected,
+        correctIndex: question.ans,
+        points: question.pts || 2,
+        attempts: previous ? (Number(previous.attempts) || 1) + 1 : 1,
+        lastAttemptAt: now
+      };
+    });
+    saveExamWrongNotes(records);
+  }
+  function getExamWrongNotes() {
+    var records = loadExamWrongNotes();
+    return Object.keys(records).map(function (key) { return records[key]; })
+      .filter(function (record) { return record && record.examId && record.questionNumber; })
+      .sort(function (a, b) { return (Number(b.lastAttemptAt) || 0) - (Number(a.lastAttemptAt) || 0); });
+  }
+  function removeExamWrongNote(key) {
+    var records = loadExamWrongNotes();
+    if (!Object.prototype.hasOwnProperty.call(records, key)) return;
+    delete records[key];
+    saveExamWrongNotes(records);
+  }
+  function clearExamWrongNotes() {
+    saveExamWrongNotes({});
+  }
+  function retryExam(examId) {
+    if (examById(examId)) startExam(examId);
   }
 
   /* ─── 도표 제외 로직 ─── */
@@ -413,6 +466,7 @@
     if (auto) window.alert('제한 시간이 종료되어 자동 제출되었습니다.');
     state.submitted = true;
     stopTimer();
+    updateExamWrongNotes(e);
     var r = scoreExam(e);
     /* 학습 게임(지식의 탑) 성장 연동 */
     if (window.GameUI) window.GameUI.reportExam({ score: r.score, max: r.max, correct: r.correct, label: e.label });
@@ -721,6 +775,10 @@
     renderPicker: renderPicker,
     renderRun: renderRun,
     renderResult: renderResult,
+    getWrongNotes: getExamWrongNotes,
+    removeWrongNote: removeExamWrongNote,
+    clearWrongNotes: clearExamWrongNotes,
+    retryExam: retryExam,
     cleanup: function () {
       stopTimer();
       var runView = document.getElementById('view-examrun');
