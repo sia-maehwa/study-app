@@ -45,10 +45,12 @@
       var predict = isPredict(assessment);
       var source = {};
       Object.keys(assessment).forEach(function (key) { source[key] = assessment[key]; });
-      if (!predict) source.questionImagePattern = 'assets/exams/{assessmentId}/q{number}.jpg';
+      if (!predict && id === 'social-culture' && !source.questionImagePattern) {
+        source.questionImagePattern = 'assets/exams/{assessmentId}/q{number}.jpg';
+      }
       return window.AssessmentEngine.normalizeAssessment(source, {
         courseId: id,
-        assessmentType: predict ? 'self-produced-practice' : 'official-exam'
+        assessmentType: source.assessmentType || (predict ? 'self-produced-practice' : 'official-exam')
       });
     });
     return assessmentCache[id].slice();
@@ -56,7 +58,10 @@
   function examById(id) {
     return allExams(state.courseId).filter(function (e) { return e.id === id; })[0] || null;
   }
-  function isPredict(e) { return e && e.id.indexOf('predict_') === 0; }
+  function isPredict(e) {
+    return !!(e && (e.assessmentType === 'self-produced-practice' ||
+      e.assessmentCategory === 'practice' || (e.id && e.id.indexOf('predict_') === 0)));
+  }
   function getAssessmentProfile(exam) {
     if (!window.StudyCourseRegistry || !exam) return null;
     var match = window.StudyCourseRegistry.findAssessmentProfileForExam(exam);
@@ -411,7 +416,8 @@
         '" alt="' + esc2(exam.label) + ' ' + (index + 1) + '번 문항" loading="eager" />';
     }
     var type = stimulus.type || 'html';
-    var content = stimulus.content == null ? '' : String(stimulus.content);
+    var contentValue = stimulus.content == null ? '' : stimulus.content;
+    var content = typeof contentValue === 'string' ? contentValue : '';
     var assets = Array.isArray(stimulus.assets) ? stimulus.assets : [];
     var src = stimulus.src || stimulus.url || assets[0] || '';
     if (type === 'image') {
@@ -429,8 +435,27 @@
       return '<audio class="exam-response-audio" controls preload="metadata" src="' + esc2(src) + '">' +
         '오디오를 재생할 수 없습니다.</audio>';
     }
-    if (type === 'code') return '<pre class="exam-stimulus-code"><code>' + esc2(content) + '</code></pre>';
-    if (type === 'text') return '<div class="exam-stimulus-text">' + esc2(content) + '</div>';
+    if (type === 'code') return '<pre class="exam-stimulus-code"><code>' + esc2(content || JSON.stringify(contentValue, null, 2)) + '</code></pre>';
+    if (type === 'text') return '<div class="exam-stimulus-text">' + esc2(content || contentValue) + '</div>';
+    if (type === 'table' && contentValue && typeof contentValue === 'object') {
+      var headers = contentValue.headers || contentValue.columns || [];
+      var rows = contentValue.rows || [];
+      return '<div class="exam-stimulus-table"><table><thead><tr>' +
+        headers.map(function (header) { return '<th>' + esc2(header) + '</th>'; }).join('') +
+        '</tr></thead><tbody>' + rows.map(function (row) {
+          return '<tr>' + (Array.isArray(row) ? row : []).map(function (cell) {
+            return '<td>' + esc2(cell) + '</td>';
+          }).join('') + '</tr>';
+        }).join('') + '</tbody></table></div>';
+    }
+    if (type === 'chart' && contentValue && typeof contentValue === 'object') {
+      var chartText = contentValue.description || JSON.stringify(contentValue, null, 2);
+      return '<pre class="exam-stimulus-code">' + esc2(chartText) + '</pre>';
+    }
+    if (type === 'math') {
+      var mathContent = content || (contentValue && contentValue.latex) || '';
+      return '<div class="exam-stimulus-math">' + mathContent + '</div>';
+    }
     return '<div class="exam-stimulus-' + esc2(type) + '">' + content + '</div>';
   }
 
