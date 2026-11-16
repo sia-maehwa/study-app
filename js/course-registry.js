@@ -11,6 +11,7 @@
       symbol: '社',
       status: 'available',
       contentKey: 'social-culture',
+      assessmentKey: 'social-culture',
       educationStage: 'high-school',
       discipline: 'social-sciences',
       courseKind: 'elective',
@@ -76,6 +77,13 @@
     return modules && modules[course.contentKey] ? modules[course.contentKey] : null;
   }
 
+  function getAssessmentData(courseId) {
+    var course = get(courseId);
+    if (!course || !course.assessmentKey) return null;
+    var modules = global.StudyCourseAssessments;
+    return modules && modules[course.assessmentKey] ? modules[course.assessmentKey] : null;
+  }
+
   function getAssessmentProfile(courseId, profileId) {
     var course = get(courseId);
     if (!course || !Array.isArray(course.assessmentProfiles)) return null;
@@ -107,6 +115,7 @@
     get: get,
     listAvailable: listAvailable,
     getContent: getContent,
+    getAssessmentData: getAssessmentData,
     getAssessmentProfile: getAssessmentProfile,
     findAssessmentProfileForExam: findAssessmentProfileForExam
   };
