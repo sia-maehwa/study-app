@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "사회문화 연습장",
-  "short_name": "사회문화",
-  "description": "사회·문화 개념 학습, 기출 모의고사, 오답 노트와 스타일러스 필기를 지원하는 학습 앱",
+  "name": "학습노트",
+  "short_name": "학습노트",
+  "description": "과목별 개념 학습, 문제 풀이, 모의고사, 오답 노트와 스타일러스 필기를 지원하는 학습 앱",
   "lang": "ko-KR",
   "start_url": "./",
   "scope": "./",
@@ -11,7 +11,10 @@
   "background_color": "#F4F6F8",
   "theme_color": "#2456E6",
   "prefer_related_applications": false,
-  "categories": ["education", "productivity"],
+  "categories": [
+    "education",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "assets/app-icon-192.png",
