@@ -1,0 +1,35 @@
+{
+  "id": "./",
+  "name": "사회문화 연습장",
+  "short_name": "사회문화",
+  "description": "사회·문화 개념 학습, 기출 모의고사, 오답 노트와 스타일러스 필기를 지원하는 학습 앱",
+  "lang": "ko-KR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F4F6F8",
+  "theme_color": "#2456E6",
+  "prefer_related_applications": false,
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "assets/app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
