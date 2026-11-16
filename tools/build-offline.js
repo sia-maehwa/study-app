@@ -58,6 +58,16 @@ function validateRuntimeAssets(exams) {
   assert(fs.existsSync(cssPath), 'Missing css/style.css.');
   assert(fs.statSync(cssPath).size > 1000, 'css/style.css is unexpectedly small.');
 
+  const pwaFiles = [
+    'manifest.webmanifest', 'service-worker.js', 'assets/app-icon.svg',
+    'assets/app-icon-192.png', 'assets/app-icon-512.png'
+  ];
+  for (const file of pwaFiles) {
+    const absolute = path.join(root, file);
+    assert(fs.existsSync(absolute), 'Missing PWA asset: ' + file);
+    assert(fs.statSync(absolute).size > 100, 'PWA asset is unexpectedly small: ' + file);
+  }
+
   const requiredScripts = [
     'js/data.js', 'js/exams.js', 'js/storage.js', 'js/predict.js',
     'js/game.js', 'js/pen-tools.js', 'js/exam-app.js', 'js/app.js'
@@ -104,6 +114,8 @@ function main() {
   const examApp = read('js/exam-app.js');
   assert(!html.includes('data-pplx-inline-edit'), 'Unexpected editor-injected script in app-source.html.');
   assert(html.includes('id="view-subject-select"'), 'The first-visit subject selection view is missing.');
+  assert(html.includes('<link rel="manifest" href="manifest.webmanifest" />'), 'The PWA manifest link is missing.');
+  assert(html.includes("navigator.serviceWorker.register('./service-worker.js'"), 'The PWA service worker registration is missing.');
 
   const dataCheck = validateQuestionData();
   const assetCheck = validateRuntimeAssets(dataCheck.exams);
