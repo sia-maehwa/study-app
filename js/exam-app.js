@@ -398,7 +398,15 @@
   function questionStimulusHtml(question, exam, index) {
     var stimulus = question.stimulus;
     if (!stimulus) {
-      if (question.q) return '<div class="pq-q">' + question.q + '</div>';
+      var prompt = question.prompt !== undefined ? question.prompt : question.q;
+      if (typeof prompt === 'string' && prompt.length) {
+        return '<div class="pq-q">' + (question.promptFormat === 'text' ? esc2(prompt) : prompt) + '</div>';
+      }
+      if (prompt && typeof prompt === 'object') {
+        var promptContent = prompt.content == null ? '' : String(prompt.content);
+        var promptFormat = prompt.format || question.promptFormat || 'text';
+        return '<div class="pq-q">' + (promptFormat === 'html' ? promptContent : esc2(promptContent)) + '</div>';
+      }
       return '<img class="exam-qimg" id="examQImg" src="' + imgSrc(exam.id, index + 1) +
         '" alt="' + esc2(exam.label) + ' ' + (index + 1) + '번 문항" loading="eager" />';
     }
@@ -430,7 +438,7 @@
     var responseType = question.responseType || 'single-choice';
     var value = state.answers[index];
     var options = question.options || [];
-    var useTextLayout = !!question.q;
+    var useTextLayout = !!(question.q || (question.prompt && (typeof question.prompt === 'object' || String(question.prompt).length)));
     if (responseType === 'single-choice' || responseType === 'multiple-select') {
       if (!options.length && Array.isArray(question.c)) {
         options = question.c.map(function (choice, choiceIndex) {
