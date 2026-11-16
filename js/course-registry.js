@@ -10,6 +10,7 @@
       title: '사회·문화',
       symbol: '社',
       status: 'available',
+      contentKey: 'social-culture',
       educationStage: 'high-school',
       discipline: 'social-sciences',
       courseKind: 'elective',
@@ -68,6 +69,13 @@
     return courses.filter(function (course) { return course.status === 'available'; }).slice();
   }
 
+  function getContent(courseId) {
+    var course = get(courseId);
+    if (!course || !course.contentKey) return null;
+    var modules = global.StudyCourseContent;
+    return modules && modules[course.contentKey] ? modules[course.contentKey] : null;
+  }
+
   function getAssessmentProfile(courseId, profileId) {
     var course = get(courseId);
     if (!course || !Array.isArray(course.assessmentProfiles)) return null;
@@ -98,6 +106,7 @@
     version: 1,
     get: get,
     listAvailable: listAvailable,
+    getContent: getContent,
     getAssessmentProfile: getAssessmentProfile,
     findAssessmentProfileForExam: findAssessmentProfileForExam
   };
