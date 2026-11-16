@@ -656,15 +656,8 @@ p, li, figcaption { text-wrap: pretty; }
   -webkit-user-select: none !important;
   -webkit-user-drag: none !important;
 }
-/* 펜이 실제로 닿아 획을 긋는 동안만 문서 스크롤과 오버스크롤을 잠급니다.
-   획이 끝나거나 취소되면 JS가 클래스를 제거해 손가락 스크롤을 복구합니다. */
-html.pen-drawing-active,
-body.pen-drawing-active {
-  overflow: hidden !important;
-  overscroll-behavior: none !important;
-  user-select: none !important;
-  -webkit-user-select: none !important;
-}
+/* 펜으로 쓰는 중에는 해당 문제 영역만 터치 제스처와 텍스트 선택을 막습니다.
+   html/body의 overflow는 건드리지 않아 sticky 상단바와 문서 스크롤 기준을 고정합니다. */
 .pen-surface-root.pen-input-active,
 .pen-surface-root.pen-input-active * {
   -webkit-user-drag: none !important;

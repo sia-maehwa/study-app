@@ -223,12 +223,10 @@
       if (activeStroke && event.cancelable) event.preventDefault();
     }
     function setPageDragLock(locked) {
-      var html = document.documentElement;
-      var body = document.body;
-      [html, body].forEach(function (node) {
-        if (!node || !node.classList) return;
-        node.classList.toggle('pen-drawing-active', !!locked);
-      });
+      /* html/body의 overflow는 변경하지 않습니다.
+         문서 스크롤 컨테이너가 바뀌면 sticky 헤더와 모바일 브라우저 viewport가
+         펜을 놓을 때마다 재계산되어 상단바가 깜빡일 수 있습니다.
+         입력 중인 문제 영역만 잠그고 상단 레이아웃은 계속 동일하게 유지합니다. */
       root.classList.toggle('pen-input-active', !!locked);
     }
     function finish(event) {
