@@ -658,7 +658,7 @@
       case 'quiz': renderQuiz(); break;
       case 'concepts': renderConcepts(); break;
       case 'wrong': renderWrong(); break;
-      case 'exam': if (window.ExamUI) window.ExamUI.renderPicker(el.views.exam); break;
+      case 'exam': if (window.ExamUI) window.ExamUI.renderPicker(el.views.exam, getSelectedSubject()); break;
       case 'examrun': if (window.ExamUI) window.ExamUI.renderRun(el.views.examrun); break;
       case 'examresult': if (window.ExamUI) window.ExamUI.renderResult(el.views.examresult); break;
       case 'game': if (window.GameUI) window.GameUI.render(el.views.game); break;
