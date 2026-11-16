@@ -567,11 +567,28 @@
         '<button class="btn btn-ghost" data-clear-exam-wrong type="button">모의고사 오답 비우기</button></div>';
       html += '<div class="wrong-list">';
       var choiceLabels = ['①', '②', '③', '④', '⑤'];
+      function formatExamWrongValue(value, responseType) {
+        if (value === null || value === undefined || value === '') return '미응답';
+        var values = Array.isArray(value) ? value : [value];
+        if (responseType === 'single-choice' || responseType === 'multiple-select') {
+          return values.map(function (item) {
+            var index = typeof item === 'number' ? item :
+              (/^\\d+$/.test(String(item)) ? Number(item) : -1);
+            return index >= 0 ? (choiceLabels[index] || '선택지 ' + (index + 1)) : esc(item);
+          }).join(', ');
+        }
+        if (value && typeof value === 'object') {
+          if (value.value !== undefined) return esc(value.value);
+          return esc(JSON.stringify(value));
+        }
+        return esc(value);
+      }
       examWrong.forEach(function (record) {
-        var selected = record.selectedIndex === null || record.selectedIndex === undefined
-          ? '미응답'
-          : (choiceLabels[record.selectedIndex] || '선택지 ' + (record.selectedIndex + 1));
-        var correct = choiceLabels[record.correctIndex] || '선택지 ' + (record.correctIndex + 1);
+        var responseType = record.responseType || 'single-choice';
+        var selectedValue = record.response !== undefined ? record.response : record.selectedIndex;
+        var correctValue = record.correctAnswer !== undefined ? record.correctAnswer : record.correctIndex;
+        var selected = formatExamWrongValue(selectedValue, responseType);
+        var correct = formatExamWrongValue(correctValue, responseType);
         var when = record.lastAttemptAt ? new Date(record.lastAttemptAt).toLocaleDateString('ko-KR') : '';
         html += '<div class="wrong-item exam-wrong-item">' +
           '<div class="wrong-item-head">' +
