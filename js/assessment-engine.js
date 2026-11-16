@@ -136,8 +136,11 @@
     normalized.assessmentType = options.assessmentType || assessment.assessmentType || assessment.kind || 'practice';
     normalized.title = assessment.title || assessment.label || assessment.id || 'Assessment';
     normalized.durationSec = Number(options.durationSec || assessment.durationSec || 0);
+    normalized.questionImagePattern = options.questionImagePattern || assessment.questionImagePattern || '';
     normalized.questions = sourceQuestions.map(function (question) {
-      return normalizeQuestion(question, assessment);
+      var item = normalizeQuestion(question, normalized);
+      if (!hasOwn(item, 'ans')) item.ans = item.answerKey;
+      return item;
     });
     normalized.items = normalized.questions;
     normalized.questionCount = normalized.questions.length;
