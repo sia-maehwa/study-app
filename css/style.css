@@ -458,7 +458,7 @@ p, li, figcaption { text-wrap: pretty; }
 
 /* 두 줄 헤더가 필요한 태블릿/모바일의 고정 높이입니다. */
 @media (max-width: 980px) {
-  :root { --site-header-height: 108px; }
+  :root { --site-header-height: 116px; }
 }
 
 /* 넓은 태블릿/좁은 데스크톱에서는 로고와 메뉴를 분리해 텍스트가 눌리지 않게 합니다. */
