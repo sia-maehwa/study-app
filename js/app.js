@@ -188,7 +188,7 @@
       html += '<button type="button" class="subject-pick-button" data-select-subject="' + esc(subject.id) + '">' +
         '<span class="subject-pick-mark" aria-hidden="true">' + esc(subject.symbol || '•') + '</span>' +
         '<span class="subject-pick-copy"><strong>' + esc(subject.title) + '</strong>' +
-        '<small>' + esc(subject.curriculum) + '</small><span>' + esc(subject.detail) + '</span></span>' +
+        '<small>' + esc(subject.curriculum && subject.curriculum.name ? subject.curriculum.name : subject.curriculum) + '</small><span>' + esc(subject.detail) + '</span></span>' +
         '<span class="subject-pick-action">' + (selected === subject.id ? '선택됨' : '선택하기') + ' <span aria-hidden="true">→</span></span>' +
         '</button>';
     });
