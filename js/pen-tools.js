@@ -203,11 +203,26 @@
 
       activeChoiceTarget = event.target.closest('[data-choice], [data-omr]');
       activePointerId = event.pointerId;
+      var surfaceRect = root.getBoundingClientRect();
+      var questionImage = root.querySelector('.exam-qimg');
+      var questionImageRect = questionImage ? questionImage.getBoundingClientRect() : null;
+      var imageRectMeta = questionImage && questionImageRect && questionImage.naturalWidth
+        ? {
+            x: questionImageRect.left - surfaceRect.left,
+            y: questionImageRect.top - surfaceRect.top,
+            w: questionImageRect.width,
+            h: questionImageRect.height,
+            nw: questionImage.naturalWidth,
+            nh: questionImage.naturalHeight
+          }
+        : null;
       activeStroke = {
         t: mode === 'eraser' ? 'e' : 'p',
         c: color,
         u: 1,
         w: logicalWidth,
+        h: logicalHeight,
+        ir: imageRectMeta,
         p: [pointFromEvent(event)]
       };
       setPageDragLock(true);
