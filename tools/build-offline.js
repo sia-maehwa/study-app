@@ -114,7 +114,7 @@ function main() {
   const examApp = read('js/exam-app.js');
   assert(!html.includes('data-pplx-inline-edit'), 'Unexpected editor-injected script in app-source.html.');
   assert(html.includes('id="view-subject-select"'), 'The first-visit subject selection view is missing.');
-  assert(html.includes('<link rel="manifest" href="manifest.webmanifest" />'), 'The PWA manifest link is missing.');
+  assert(html.includes('<link rel="manifest" href="manifest.webmanifest?v=20261116-name-2" />'), 'The PWA manifest link is missing.');
   assert(html.includes("navigator.serviceWorker.register('./service-worker.js'"), 'The PWA service worker registration is missing.');
 
   const dataCheck = validateQuestionData();
