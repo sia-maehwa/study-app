@@ -12,6 +12,8 @@
     var color = /^#[0-9a-f]{6}$/i.test(options.color || '') ? options.color : DEFAULT_COLOR;
     var activeStroke = null;
     var activePointerId = null;
+    var activeChoiceTarget = null;
+    var pendingChoiceClickTarget = null;
     var redoStack = [];
     var ratio = 1;
     var logicalWidth = 0;
@@ -194,12 +196,12 @@
     }
 
     function onPointerDown(event) {
+      /* 이전 펜 동작 뒤 클릭이 발생하지 않았다면 다음 입력부터는 새 동작입니다. */
+      pendingChoiceClickTarget = null;
       if (event.pointerType !== 'pen' || mode === 'off' || activeStroke) return;
       if (!isInsideRoot(event.target) || isControlTarget(event.target)) return;
-      /* 선택지 위에서 펜으로 그릴 때 답안 버튼의 합성 click이 발생하지 않게 합니다.
-         손가락 입력과 펜 모드 off 상태의 선택 동작은 그대로 유지됩니다. */
-      if (event.cancelable) event.preventDefault();
 
+      activeChoiceTarget = event.target.closest('[data-choice], [data-omr]');
       activePointerId = event.pointerId;
       activeStroke = {
         t: mode === 'eraser' ? 'e' : 'p',
@@ -239,8 +241,10 @@
       if (!activeStroke || (event && event.pointerId !== activePointerId)) return;
       if (event && Number.isFinite(event.clientX) && Number.isFinite(event.clientY)) appendSamples(event);
       var completed = activeStroke;
+      if (activeChoiceTarget) pendingChoiceClickTarget = activeChoiceTarget;
       activeStroke = null;
       activePointerId = null;
+      activeChoiceTarget = null;
 
       setPageDragLock(false);
       getStrokes().push(completed);
@@ -254,6 +258,7 @@
       var interrupted = activeStroke;
       activeStroke = null;
       activePointerId = null;
+      activeChoiceTarget = null;
 
       setPageDragLock(false);
       if (interrupted.p.length) {
@@ -264,8 +269,21 @@
       /* 부분 획도 입력 중 캔버스에 이미 그려졌으므로 전체 재생은 필요하지 않습니다. */
     }
 
+    function suppressChoiceClick(event) {
+      if (!pendingChoiceClickTarget) return;
+      var clickedChoice = event.target && event.target.closest
+        ? event.target.closest('[data-choice], [data-omr]')
+        : null;
+      var shouldSuppress = clickedChoice === pendingChoiceClickTarget;
+      pendingChoiceClickTarget = null;
+      if (!shouldSuppress) return;
+      if (event.cancelable) event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+
     var capture = { capture: true, passive: false };
     document.addEventListener('pointerdown', onPointerDown, capture);
+    document.addEventListener('click', suppressChoiceClick, true);
     document.addEventListener('pointermove', onPointerMove, capture);
     document.addEventListener('pointerup', finish, true);
     document.addEventListener('pointercancel', cancel, true);
@@ -318,6 +336,7 @@
       window.removeEventListener('resize', resize);
       if (resizeObserver) resizeObserver.disconnect();
       document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('click', suppressChoiceClick, true);
       document.removeEventListener('pointermove', onPointerMove, true);
       document.removeEventListener('pointerup', finish, true);
       document.removeEventListener('pointercancel', cancel, true);

@@ -111,7 +111,10 @@ function main() {
   assert(/<link\b(?=[^>]*\brel=["']stylesheet["'])[^>]*\bhref=["']css\/style\.css["'][^>]*>/i.test(html),
     'The source template must load the local css/style.css file.');
   for (const file of ['js/data.js', 'js/exams.js', 'js/storage.js', 'js/predict.js', 'js/game.js', 'js/pen-tools.js', 'js/exam-app.js', 'js/app.js']) {
-    assert(html.includes('src="' + file + '"'), 'The source template is missing ' + file + '.');
+    const scriptRef = file === 'js/pen-tools.js'
+      ? 'src="js/pen-tools.js?v=20261116-choice-2"'
+      : 'src="' + file + '"';
+    assert(html.includes(scriptRef), 'The source template is missing ' + file + '.');
   }
   assert(examApp.includes("return 'assets/exams/'"),
     'The exam renderer must use ordinary relative exam-image paths.');
