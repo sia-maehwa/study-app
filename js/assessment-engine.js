@@ -30,6 +30,8 @@
     if (question.responseType) return question.responseType;
     if (question.itemType) return question.itemType;
     if (Array.isArray(question.c) || Array.isArray(question.options)) return 'single-choice';
+    var legacyAnswer = getAnswerKey(question);
+    if (typeof legacyAnswer === 'number' && Number.isInteger(legacyAnswer)) return 'single-choice';
     return 'short-answer';
   }
 
@@ -87,6 +89,12 @@
     }
     var options = normalizeOptions(question);
     var answerKey = getAnswerKey(question);
+    if (responseType === 'single-choice' && !options.length &&
+        typeof answerKey === 'number' && Number.isInteger(answerKey) && answerKey >= 0 && answerKey <= 4) {
+      options = [0, 1, 2, 3, 4].map(function (index) {
+        return { id: 'option-' + index, content: '', label: '' };
+      });
+    }
     var points = Number(question.points !== undefined ? question.points : question.pts);
     if (!Number.isFinite(points) || points < 0) points = 0;
 
