@@ -240,77 +240,111 @@
     var predictExams = courseExams.filter(isPredict);
     var officialExams = courseExams.filter(function (exam) { return !isPredict(exam); });
     var assessmentData = courseAssessmentData(state.courseId);
-    var nodopyo = excludeDopyo();
+    var hasDiagramItems = courseExams.some(function (exam) {
+      return exam.questions.some(function (question) { return !!question.d; });
+    });
+    var totalOfficialQuestions = officialExams.reduce(function (total, exam) { return total + exam.questions.length; }, 0);
+    var totalPracticeQuestions = predictExams.reduce(function (total, exam) { return total + exam.questions.length; }, 0);
 
     var html = '<div class="hero exam-hero">' +
-      '<span class="hero-kicker">기출 15회분 + 자체 제작 예상 모의고사 3회분</span>' +
-      '<h1>실전 모의고사로<br>실제 시험 감각을 익히세요</h1>' +
-      '<p>2022~2026학년도 수능·6월·9월 평가원 기출 15회분과, 기출 300문항 분석을 바탕으로 제작한 예상 모의고사 3회분. 제한 시간 30분, 점수 채점(배점 2·3점 합산) 후 예상 등급까지 확인합니다.</p>' +
+      '<span class="hero-kicker">과목별 평가 · 기출 및 연습 시험</span>' +
+      '<h1>응시할 평가를<br>선택해 주세요</h1>' +
+      '<p>등록된 평가 ' + courseExams.length + '회 · 총 ' + (totalOfficialQuestions + totalPracticeQuestions) +
+      '문항입니다. 각 평가의 문항 유형과 제한 시간에 맞춰 진행하며, 자동 채점과 수동 채점 상태를 구분합니다.</p>' +
       '</div>';
 
-    /* 도표 제외 설정 */
-    html += '<div class="dopyo-toggle' + (nodopyo ? ' on' : '') + '">' +
-      '<div class="dt-text"><b>도표(표·그래프) 문항 제외</b>' +
-      '<span>표나 그래프 자료가 포함된 문항을 빼고 응시합니다. 채점 만점은 제외 문항 배점을 뺀 점수가 되고, 등급 추정은 참고용으로 제공됩니다.</span></div>' +
-      '<button type="button" class="dt-switch" data-dopyo-toggle role="switch" aria-checked="' + nodopyo + '" aria-label="도표 문항 제외"><span class="dt-knob"></span></button></div>';
+    /* 도표 제외 설정은 도표 문항이 있는 과목에만 표시합니다. */
+    if (hasDiagramItems) {
+      html += '<div class="dopyo-toggle' + (excludeDopyo() ? ' on' : '') + '">' +
+        '<div class="dt-text"><b>도표(표·그래프) 문항 제외</b>' +
+        '<span>표나 그래프 자료가 포함된 문항을 빼고 응시합니다. 채점 만점은 제외 문항 배점을 뺀 점수가 됩니다.</span></div>' +
+        '<button type="button" class="dt-switch" data-dopyo-toggle role="switch" aria-checked="' + excludeDopyo() + '" aria-label="도표 문항 제외"><span class="dt-knob"></span></button></div>';
+    }
 
     /* 예상 모의고사 */
     if (predictExams.length) {
-      html += '<div class="section-head predict-head"><h2>연습 모의고사</h2><span>과목별 학습 콘텐츠</span></div>';
+      html += '<div class="section-head predict-head"><h2>연습·과제</h2><span>' + predictExams.length + '회</span></div>';
       html += '<div class="exam-year-row"><div class="exam-cards predict-cards">';
       predictExams.forEach(function (e) {
         var best = bestRecord(e.id);
+        var durationMinutes = Math.round(examDurationSec(e) / 60);
         html += '<button type="button" class="exam-card predict-card" data-start-exam="' + e.id + '">' +
-          '<span class="exam-card-kind">자체 제작</span>' +
-          '<span class="exam-card-title">' + esc2(e.label.replace('수능 예상 ', '')) + '</span>' +
-          '<span class="exam-card-meta">20문항 · 50점 · 30분' +
+          '<span class="exam-card-kind">' + esc2(e.assessmentType || '연습 평가') + '</span>' +
+          '<span class="exam-card-title">' + esc2(e.label) + '</span>' +
+          '<span class="exam-card-meta">' + e.questions.length + '문항 · ' + maxScore(e) + '점' +
+          (durationMinutes ? ' · ' + durationMinutes + '분' : '') +
           (best ? ' · 최고 <b>' + best.score + '점</b>' : '') + '</span>' +
-          '<span class="predict-sub">' + esc2(e.sub) + '</span></button>';
+          (e.sub ? '<span class="predict-sub">' + esc2(e.sub) + '</span>' : '') + '</button>';
       });
       html += '</div></div>';
 
-      /* 분석 노트 */
-      html += '<details class="predict-note"><summary>이 예상 문제지는 어떻게 만들었나요? (기출 분석 노트)</summary><div class="pn-body">' +
-        '<p>최근 5개년(2022~2026) 평가원 기출 15회, 300문항의 <b>단원별 출제 비중</b>을 분석해 그 분포를 따랐고, 최근 수능에서 반복되는 유형(빈출 개념 조합, 3점 변별력 문항 형식)을 참고해 자체 제작했습니다. 실제 출제 문항과 무관하며 학습용 예상 문제입니다.</p>' +
-        '<div class="unit-freq">';
-      var unitFrequency = assessmentData && assessmentData.unitFrequency ? assessmentData.unitFrequency : {};
-      var content = window.StudyCourseRegistry && window.StudyCourseRegistry.getContent(state.courseId);
-      var courseUnits = content && content.units ? content.units : [];
-      var freqTotal = 0;
-      courseUnits.forEach(function (unit) { freqTotal += unitFrequency[unit.id] || 0; });
-      courseUnits.forEach(function (unit) {
-        var u = unit.id;
-        var n = unitFrequency[u] || 0;
-        html += '<div class="uf-row"><span class="uf-name">' + esc2(unitName(u)) + '</span>' +
-          '<span class="uf-bar"><span class="uf-fill" style="width:' + Math.round(n / 83 * 100) + '%"></span></span>' +
-          '<span class="uf-val">' + n + '문항</span></div>';
-      });
-      html += '</div></div></details>';
+      /* 사회·문화 자체 제작 예상 문항의 출제 비중 분석 노트 */
+      if (state.courseId === 'social-culture' && assessmentData && assessmentData.unitFrequency) {
+        html += '<details class="predict-note"><summary>이 예상 문제지는 어떻게 만들었나요? (기출 분석 노트)</summary><div class="pn-body">' +
+          '<p>최근 5개년(2022~2026) 평가원 기출 15회, 300문항의 <b>단원별 출제 비중</b>을 분석해 그 분포를 따랐고, 최근 수능에서 반복되는 유형(빈출 개념 조합, 3점 변별력 문항 형식)을 참고해 자체 제작했습니다. 실제 출제 문항과 무관하며 학습용 예상 문제입니다.</p>' +
+          '<div class="unit-freq">';
+        var unitFrequency = assessmentData.unitFrequency;
+        var content = window.StudyCourseRegistry && window.StudyCourseRegistry.getContent(state.courseId);
+        var courseUnits = content && content.units ? content.units : [];
+        courseUnits.forEach(function (unit) {
+          var n = unitFrequency[unit.id] || 0;
+          html += '<div class="uf-row"><span class="uf-name">' + esc2(unitName(unit.id)) + '</span>' +
+            '<span class="uf-bar"><span class="uf-fill" style="width:' + Math.round(n / 83 * 100) + '%"></span></span>' +
+            '<span class="uf-val">' + n + '문항</span></div>';
+        });
+        html += '</div></div></details>';
+      }
     }
 
-    /* 기출 목록 */
-    html += '<div class="section-head" style="margin-top:var(--space-8)"><h2>평가원 기출 5개년</h2><span>총 15회 · 300문항</span></div>';
-
+    /* 등록된 기출·정규 평가 */
+    html += '<div class="section-head" style="margin-top:var(--space-8)"><h2>기출·정규 평가</h2>' +
+      '<span>' + officialExams.length + '회 · ' + totalOfficialQuestions + '문항</span></div>';
     var years = [];
-    courseExams.forEach(function (e) { if (e.year && years.indexOf(e.year) === -1) years.push(e.year); });
+    officialExams.forEach(function (exam) {
+      if (exam.year && years.indexOf(exam.year) === -1) years.push(exam.year);
+    });
     years.sort(function (a, b) { return b - a; });
 
-    years.forEach(function (y) {
-      html += '<div class="exam-year-row"><h3 class="exam-year">' + y + '학년도</h3><div class="exam-cards">';
-      ['suneung', 'june', 'sept'].forEach(function (kind) {
-        var e = officialExams.filter(function (x) { return x.year === y && x.kind === kind; })[0];
-        if (!e) return;
-        var best = bestRecord(e.id);
-        html += '<button type="button" class="exam-card" data-start-exam="' + e.id + '">' +
-          '<span class="exam-card-kind">' + (kind === 'suneung' ? '수능' : kind === 'june' ? '6월 모의평가' : '9월 모의평가') + '</span>' +
-          '<span class="exam-card-title">' + esc2(e.label.split('학년도 ')[1] || e.label) + '</span>' +
-          '<span class="exam-card-meta">20문항 · 50점' +
-          (best !== null ? ' · 최고 <b>' + best.score + '점</b>' : '') + '</span></button>';
-      });
-      html += '</div></div>';
-    });
+    function sessionLabel(exam) {
+      if (exam.kind === 'suneung') return '수능';
+      if (exam.kind === 'june') return '6월 모의평가';
+      if (exam.kind === 'sept') return '9월 모의평가';
+      return exam.assessmentType || exam.kind || '정규 평가';
+    }
+    function examCardHtml(exam) {
+      var best = bestRecord(exam.id);
+      var durationMinutes = Math.round(examDurationSec(exam) / 60);
+      return '<button type="button" class="exam-card" data-start-exam="' + esc2(exam.id) + '">' +
+        '<span class="exam-card-kind">' + esc2(sessionLabel(exam)) + '</span>' +
+        '<span class="exam-card-title">' + esc2(exam.label || exam.title || exam.id) + '</span>' +
+        '<span class="exam-card-meta">' + exam.questions.length + '문항 · ' + maxScore(exam) + '점' +
+        (durationMinutes ? ' · ' + durationMinutes + '분' : '') +
+        (best !== null ? ' · 최고 <b>' + best.score + '점</b>' : '') + '</span></button>';
+    }
 
-    html += '<p class="exam-src-note">출제: 한국교육과정평가원 (공공저작물 제56조에 따라 출처를 표시하고 제공합니다)</p>';
+    if (years.length) {
+      years.forEach(function (year) {
+        html += '<div class="exam-year-row"><h3 class="exam-year">' + year + '학년도</h3><div class="exam-cards">';
+        officialExams.filter(function (exam) { return exam.year === year; })
+          .forEach(function (exam) { html += examCardHtml(exam); });
+        html += '</div></div>';
+      });
+      var noYear = officialExams.filter(function (exam) { return !exam.year; });
+      if (noYear.length) {
+        html += '<div class="exam-year-row"><div class="exam-cards">';
+        noYear.forEach(function (exam) { html += examCardHtml(exam); });
+        html += '</div></div>';
+      }
+    } else if (officialExams.length) {
+      html += '<div class="exam-year-row"><div class="exam-cards">';
+      officialExams.forEach(function (exam) { html += examCardHtml(exam); });
+      html += '</div></div>';
+    } else {
+      html += '<div class="empty-state"><strong>등록된 기출·정규 평가가 없습니다</strong>연습 평가를 이용하거나 콘텐츠가 준비된 뒤 다시 확인해 주세요.</div>';
+    }
+
+    html += '<p class="exam-src-note">' + esc2((window.StudyCourseRegistry && window.StudyCourseRegistry.get(state.courseId) || {}).title || '과목') +
+      ' 평가 데이터는 과목별 콘텐츠 모듈에서 불러옵니다.</p>';
     if (window.Store && !window.Store.persistent) {
       html += '<p class="exam-src-note">이 브라우저에서는 기록 저장이 제한되어 페이지를 닫으면 응시 기록이 사라질 수 있습니다.</p>';
     }
