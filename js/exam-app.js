@@ -637,8 +637,11 @@
         if (isPredict(exam)) {
           questionBody = '<div class="prompt">' + (question.q || '') + '</div>' +
             '<ol class="choices">' + (question.c || []).map(function (choice, choiceIndex) {
-              return '<li' + (choiceIndex === question.ans ? ' class="correct"' : '') +
-                (choiceIndex === selected ? ' class="selected"' : '') + '>' + choice + '</li>';
+              var choiceClasses = [];
+              if (choiceIndex === question.ans) choiceClasses.push('correct');
+              if (choiceIndex === selected) choiceClasses.push('selected');
+              return '<li' + (choiceClasses.length ? ' class="' + choiceClasses.join(' ') + '"' : '') +
+                '>' + choice + '</li>';
             }).join('') + '</ol>' +
             (question.e ? '<div class="explanation"><b>기존 해설</b><p>' + question.e + '</p></div>' : '');
         } else {
