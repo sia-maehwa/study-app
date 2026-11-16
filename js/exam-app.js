@@ -47,10 +47,8 @@
   function isPredict(e) { return e && e.id.indexOf('predict_') === 0; }
   function getAssessmentProfile(exam) {
     if (!window.StudyCourseRegistry || !exam) return null;
-    return window.StudyCourseRegistry.getAssessmentProfile(
-      'social-culture',
-      isPredict(exam) ? 'predict-mock' : 'official-mock'
-    );
+    var match = window.StudyCourseRegistry.findAssessmentProfileForExam(exam);
+    return match ? match.profile : null;
   }
   function examDurationSec(exam) {
     var profile = getAssessmentProfile(exam);
