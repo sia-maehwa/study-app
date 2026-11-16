@@ -12,6 +12,7 @@ function assert(ok, message) { if (!ok) throw new Error(message); }
 function validateQuestionData() {
   const context = { window: {} };
   vm.createContext(context);
+  vm.runInContext(read('courses/social-culture/content.js'), context, { filename: 'courses/social-culture/content.js' });
   vm.runInContext(read('js/course-registry.js'), context, { filename: 'js/course-registry.js' });
   vm.runInContext(read('js/data.js'), context, { filename: 'js/data.js' });
   vm.runInContext(read('js/exams.js'), context, { filename: 'js/exams.js' });
@@ -23,6 +24,11 @@ function validateQuestionData() {
   assert(availableCourses.length === 1, 'Expected only the content-ready Social & Culture course to be available.');
   const socialCulture = registry.get('social-culture');
   assert(socialCulture && socialCulture.status === 'available', 'The Social & Culture course is missing or unavailable.');
+  assert(socialCulture.contentKey === 'social-culture', 'The Social & Culture course has no content module key.');
+  const courseContent = registry.getContent('social-culture');
+  assert(courseContent && Array.isArray(courseContent.units) && Array.isArray(courseContent.questions) && courseContent.concepts, 'The Social & Culture content module did not resolve.');
+  assert(courseContent.units.length === 5 && courseContent.questions.length === 62 && Object.keys(courseContent.concepts).length === 5, 'The separated Social & Culture module has unexpected content counts.');
+  assert(courseContent.units === context.UNITS && courseContent.questions === context.QUESTIONS && courseContent.concepts === context.CONCEPTS, 'The compatibility adapter is not exposing the registered course data.');
   assert(socialCulture.educationStage === 'high-school' && socialCulture.discipline === 'social-sciences', 'The Social & Culture course classification is invalid.');
   assert(socialCulture.content.unitCount === 5 && socialCulture.content.conceptQuestionCount === 62, 'Course content metadata does not match the existing question bank.');
   const officialProfile = registry.getAssessmentProfile('social-culture', 'official-mock');
@@ -88,7 +94,7 @@ function validateRuntimeAssets(exams) {
   }
 
   const requiredScripts = [
-    'js/data.js', 'js/course-registry.js', 'js/exams.js', 'js/storage.js', 'js/predict.js',
+    'courses/social-culture/content.js', 'js/course-registry.js', 'js/data.js', 'js/exams.js', 'js/storage.js', 'js/predict.js',
     'js/game.js', 'js/pen-tools.js', 'js/exam-app.js', 'js/app.js'
   ];
   for (const file of requiredScripts) {
@@ -141,7 +147,7 @@ function main() {
 
   assert(/<link\b(?=[^>]*\brel=["']stylesheet["'])[^>]*\bhref=["']css\/style\.css["'][^>]*>/i.test(html),
     'The source template must load the local css/style.css file.');
-  for (const file of ['js/data.js', 'js/course-registry.js', 'js/exams.js', 'js/storage.js', 'js/predict.js', 'js/game.js', 'js/pen-tools.js', 'js/exam-app.js', 'js/app.js']) {
+  for (const file of ['courses/social-culture/content.js', 'js/course-registry.js', 'js/data.js', 'js/exams.js', 'js/storage.js', 'js/predict.js', 'js/game.js', 'js/pen-tools.js', 'js/exam-app.js', 'js/app.js']) {
     const scriptRef = file === 'js/pen-tools.js'
       ? 'src="js/pen-tools.js?v=20261117-ai-report-1"'
       : (file === 'js/exam-app.js'
