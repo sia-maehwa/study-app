@@ -391,6 +391,91 @@
     return tools;
   }
 
+  function questionStimulusHtml(question, exam, index) {
+    var stimulus = question.stimulus;
+    if (!stimulus) {
+      if (question.q) return '<div class="pq-q">' + question.q + '</div>';
+      return '<img class="exam-qimg" id="examQImg" src="' + imgSrc(exam.id, index + 1) +
+        '" alt="' + esc2(exam.label) + ' ' + (index + 1) + '번 문항" loading="eager" />';
+    }
+    var type = stimulus.type || 'html';
+    var content = stimulus.content == null ? '' : String(stimulus.content);
+    var assets = Array.isArray(stimulus.assets) ? stimulus.assets : [];
+    var src = stimulus.src || stimulus.url || assets[0] || '';
+    if (type === 'image') {
+      return assets.length
+        ? assets.map(function (asset, assetIndex) {
+            var url = typeof asset === 'string' ? asset : (asset.url || asset.src || '');
+            var alt = typeof asset === 'object' && asset.alt ? asset.alt : (question.prompt || exam.label);
+            return '<img class="exam-qimg" ' + (assetIndex === 0 ? 'id="examQImg" ' : '') +
+              'src="' + esc2(url) + '" alt="' + esc2(alt) + '" loading="eager" />';
+          }).join('')
+        : '<img class="exam-qimg" id="examQImg" src="' + esc2(src) + '" alt="' +
+          esc2(question.prompt || exam.label) + '" loading="eager" />';
+    }
+    if (type === 'audio') {
+      return '<audio class="exam-response-audio" controls preload="metadata" src="' + esc2(src) + '">' +
+        '오디오를 재생할 수 없습니다.</audio>';
+    }
+    if (type === 'code') return '<pre class="exam-stimulus-code"><code>' + esc2(content) + '</code></pre>';
+    if (type === 'text') return '<div class="exam-stimulus-text">' + esc2(content) + '</div>';
+    return '<div class="exam-stimulus-' + esc2(type) + '">' + content + '</div>';
+  }
+
+  function renderResponseControl(question, index) {
+    var responseType = question.responseType || 'single-choice';
+    var value = state.answers[index];
+    var options = question.options || [];
+    var useTextLayout = !!question.q;
+    if (responseType === 'single-choice' || responseType === 'multiple-select') {
+      if (!options.length && Array.isArray(question.c)) {
+        options = question.c.map(function (choice, choiceIndex) {
+          return { id: 'option-' + choiceIndex, content: choice };
+        });
+      }
+      var multiple = responseType === 'multiple-select';
+      var selected = Array.isArray(value) ? value : (value === null || value === undefined ? [] : [value]);
+      return '<div class="' + (useTextLayout ? 'pq-choices' : 'omr') + '" role="group" aria-label="' +
+        (multiple ? '복수 답안 선택' : '답안 선택') + '">' +
+        options.map(function (option, optionIndex) {
+          var marked = multiple ? selected.indexOf(optionIndex) !== -1 : value === optionIndex;
+          var label = CHOICE_LABELS[optionIndex] || String(optionIndex + 1);
+          var content = option.content !== undefined ? option.content : option.text || '';
+          if (useTextLayout) {
+            return '<button type="button" class="pq-choice' + (marked ? ' marked' : '') + '" ' +
+              (multiple ? 'data-multi-choice="' + optionIndex + '"' : 'data-omr="' + optionIndex + '"') +
+              ' aria-pressed="' + marked + '"><span class="pq-clab">' + label + '</span>' +
+              '<span class="pq-ctext">' + content + '</span></button>';
+          }
+          return '<button type="button" class="omr-btn' + (marked ? ' marked' : '') + '" ' +
+            (multiple ? 'data-multi-choice="' + optionIndex + '"' : 'data-omr="' + optionIndex + '"') +
+            ' aria-pressed="' + marked + '"><span class="omr-num">' + label + '</span>' +
+            '<span class="omr-state">' + (marked ? '선택됨' : '') + '</span></button>';
+        }).join('') + '</div>' +
+        (multiple ? '<p class="exam-response-hint">정답으로 판단되는 항목을 모두 선택해 주세요.</p>' : '');
+    }
+    if (responseType === 'short-answer' || responseType === 'numeric') {
+      var inputType = responseType === 'numeric' ? 'number' : 'text';
+      return '<label class="exam-response-field"><span>' +
+        (responseType === 'numeric' ? '수치 답안' : '단답형 답안') + '</span>' +
+        '<input class="exam-response-input" type="' + inputType + '"' +
+        (responseType === 'numeric' ? ' step="any" inputmode="decimal"' : ' autocomplete="off"') +
+        ' data-response-input value="' + esc2(value == null ? '' : value) +
+        '" aria-label="' + (responseType === 'numeric' ? '수치 답안 입력' : '단답형 답안 입력') + '" /></label>';
+    }
+    if (responseType === 'essay' || responseType === 'code') {
+      return '<label class="exam-response-field"><span>' +
+        (responseType === 'code' ? '코드 답안' : '서술형 답안') + '</span>' +
+        '<textarea class="exam-response-textarea' + (responseType === 'code' ? ' code' : '') +
+        '" data-response-input rows="' + (responseType === 'code' ? '12' : '7') + '"' +
+        (responseType === 'code' ? ' spellcheck="false"' : '') +
+        ' aria-label="' + (responseType === 'code' ? '코드 답안 입력' : '서술형 답안 입력') + '">' +
+        esc2(value == null ? '' : value) + '</textarea></label>' +
+        '<p class="exam-response-hint">제출 후 채점 기준에 따라 별도 채점이 필요합니다.</p>';
+    }
+    return '<p class="exam-response-hint">지원하지 않는 응답 유형입니다: ' + esc2(responseType) + '</p>';
+  }
+
   function renderRun(view) {
     var e = examById(state.examId);
     if (!e) { if (window.AppUI) window.AppUI.show('exam'); return; }
@@ -411,33 +496,17 @@
 
     html += penBarHtml();
 
-    if (predict) {
-      /* 텍스트 문항 (예상 모의고사) */
-      html += '<div class="exam-qcard predict-card2">' +
-        '<div class="pq-head"><span class="pq-num">' + q.n + '번</span>' +
-        '<span class="pq-badje">' + (q.pts || 2) + '점</span>' +
-        (q.d ? '<span class="pq-badje dopyo">도표</span>' : '') + '</div>' +
-        '<div class="pq-q">' + q.q + '</div>' +
-        '<div class="pq-choices" role="group" aria-label="답안 선택">' +
-        q.c.map(function (c, i) {
-          var marked = state.answers[state.idx] === i;
-          return '<button type="button" class="pq-choice' + (marked ? ' marked' : '') + '" data-omr="' + i + '" aria-pressed="' + marked + '">' +
-            '<span class="pq-clab">' + CHOICE_LABELS[i] + '</span><span class="pq-ctext">' + c + '</span></button>';
-        }).join('') + '</div>' +
-        '</div>';
-    } else {
-      /* 이미지 문항 (기출) */
-      html += '<div class="exam-qcard">' +
-        '<div class="exam-qwrap">' +
-        '<img class="exam-qimg" id="examQImg" src="' + imgSrc(e.id, n) + '" alt="' + esc2(e.label) + ' ' + n + '번 문항" loading="eager" />' +
-        '</div>' +
-        '<div class="omr" role="group" aria-label="답안 선택">' +
-        CHOICE_LABELS.map(function (c, i) {
-          var marked = state.answers[state.idx] === i;
-          return '<button type="button" class="omr-btn' + (marked ? ' marked' : '') + '" data-omr="' + i + '" aria-pressed="' + marked + '">' +
-            '<span class="omr-num">' + c + '</span><span class="omr-state">' + (marked ? '선택됨' : '') + '</span></button>';
-        }).join('') + '</div></div>';
-    }
+    var responseType = q.responseType || 'single-choice';
+    var questionClass = predict || q.q ? 'exam-qcard predict-card2' : 'exam-qcard';
+    html += '<div class="' + questionClass + '">' +
+      '<div class="' + (predict || q.q ? 'pq-head' : 'exam-question-head') + '">' +
+      '<span class="' + (predict || q.q ? 'pq-num' : 'exam-question-number') + '">' + (q.number || q.n || n) + '번</span>' +
+      '<span class="' + (predict || q.q ? 'pq-badje' : 'exam-question-points') + '">' + (q.points || q.pts || 0) + '점</span>' +
+      (q.d ? '<span class="pq-badje dopyo">도표</span>' : '') +
+      '<span class="exam-question-type">' + esc2(responseType) + '</span></div>' +
+      '<div class="exam-qwrap">' + questionStimulusHtml(q, e, state.idx) + '</div>' +
+      renderResponseControl(q, state.idx) +
+      '</div>';
 
     var lastQ = inc[inc.length - 1] === state.idx;
     html += '<div class="exam-run-nav">' +
@@ -446,7 +515,7 @@
       e.questions.map(function (qq, i) {
         var excluded = inc.indexOf(i) === -1;
         var cur = i === state.idx;
-        var done = !excluded && state.answers[i] !== null && state.answers[i] !== undefined;
+        var done = !excluded && hasResponse(state.answers[i]);
         return '<button type="button" class="omr-cell' + (cur ? ' cur' : '') + (done ? ' done' : '') + (excluded ? ' excl' : '') + '"' +
           (excluded ? ' disabled title="도표 문항 제외됨"' : ' data-goto="' + i + '"') + '>' + (i + 1) + '</button>';
       }).join('') + '</div>' +
@@ -456,7 +525,7 @@
       '</div>';
 
     if (lastQ) {
-      var unanswered = inc.filter(function (i) { return state.answers[i] === null || state.answers[i] === undefined; }).length;
+      var unanswered = inc.filter(function (i) { return !hasResponse(state.answers[i]); }).length;
       if (unanswered === 0) {
         html += '<p class="exam-submit-hint">모든 문항에 답안을 표기했습니다. 준비되면 시험을 종료하세요.</p>';
       } else {
@@ -473,6 +542,23 @@
         state.answers[state.idx] = parseInt(b.dataset.omr, 10);
         renderRun(view);
       });
+    });
+    view.querySelectorAll('[data-multi-choice]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var selected = Array.isArray(state.answers[state.idx]) ? state.answers[state.idx].slice() : [];
+        var optionIndex = parseInt(b.dataset.multiChoice, 10);
+        var existing = selected.indexOf(optionIndex);
+        if (existing === -1) selected.push(optionIndex);
+        else selected.splice(existing, 1);
+        state.answers[state.idx] = selected;
+        renderRun(view);
+      });
+    });
+    var responseInput = view.querySelector('[data-response-input]');
+    if (responseInput) responseInput.addEventListener('input', function () {
+      state.answers[state.idx] = responseInput.value;
+      var cell = view.querySelector('[data-goto="' + state.idx + '"]');
+      if (cell) cell.classList.toggle('done', hasResponse(responseInput.value));
     });
     /* 문항 이동 (도표 제외 문항은 건너뜀) */
     var prev = view.querySelector('[data-exam-prev]');
