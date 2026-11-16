@@ -448,6 +448,7 @@
       '<div class="grade-badge">예상 등급 <b>' + myGrade + '등급</b>' + (nodopyo ? ' <span class="grade-note">(참고)</span>' : '') + '</div>' +
       '<div class="result-actions">' +
       '<button class="btn btn-primary" data-exam-again type="button">같은 시험 다시 풀기</button>' +
+      '<button class="btn btn-ghost" data-export-ai type="button">AI 분석 보고서 다운로드</button>' +
       '<button class="btn btn-ghost" data-exam-list type="button">시험지 목록으로</button>' +
       '</div></div>';
 
@@ -521,9 +522,187 @@
     view.innerHTML = html;
 
     view.querySelector('[data-exam-again]').addEventListener('click', function () { startExam(state.examId); });
+    view.querySelector('[data-export-ai]').addEventListener('click', function (event) {
+      downloadAiReviewReport(event.currentTarget);
+    });
     view.querySelector('[data-exam-list]').addEventListener('click', function () {
       if (window.AppUI) window.AppUI.show('exam');
     });
+  }
+
+  function readBlobAsDataUrl(blob) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(reader.result); };
+      reader.onerror = function () { reject(reader.error || new Error('이미지를 읽지 못했습니다.')); };
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function readImageSize(dataUrl) {
+    return new Promise(function (resolve, reject) {
+      var image = new Image();
+      image.onload = function () { resolve({ width: image.naturalWidth, height: image.naturalHeight }); };
+      image.onerror = function () { reject(new Error('문제 이미지 크기를 확인하지 못했습니다.')); };
+      image.src = dataUrl;
+    });
+  }
+
+  function handwritingSvg(strokes, imageWidth, imageHeight) {
+    var paths = [];
+    (strokes || []).forEach(function (stroke) {
+      var rect = stroke && stroke.ir;
+      if (!rect || !Array.isArray(stroke.p) || !stroke.p.length ||
+          !(Number(rect.w) > 0) || !(Number(rect.h) > 0)) return;
+      var scaleX = imageWidth / Number(rect.w);
+      var scaleY = imageHeight / Number(rect.h);
+      var points = stroke.p.map(function (point) {
+        return [
+          (Number(point[0]) - Number(rect.x)) * scaleX,
+          (Number(point[1]) - Number(rect.y)) * scaleY
+        ];
+      }).filter(function (point) {
+        return Number.isFinite(point[0]) && Number.isFinite(point[1]);
+      });
+      if (!points.length) return;
+      var d = points.map(function (point, index) {
+        return (index ? 'L' : 'M') + point[0].toFixed(2) + ' ' + point[1].toFixed(2);
+      }).join(' ');
+      var surfaceWidth = Number(stroke.w) || Number(rect.w);
+      var cssWidth = stroke.t === 'e'
+        ? Math.max(26, surfaceWidth / 38)
+        : Math.max(2.8, surfaceWidth / 480);
+      var lineWidth = cssWidth * scaleX;
+      var color = stroke.t === 'e' ? '#ffffff' : (/^#[0-9a-f]{6}$/i.test(stroke.c || '') ? stroke.c : '#2563eb');
+      paths.push('<path d="' + d + '" fill="none" stroke="' + color +
+        '" stroke-width="' + lineWidth.toFixed(2) +
+        '" stroke-linecap="round" stroke-linejoin="round"/>');
+      if (points.length === 1) {
+        paths.push('<circle cx="' + points[0][0].toFixed(2) + '" cy="' + points[0][1].toFixed(2) +
+          '" r="' + (lineWidth / 2).toFixed(2) + '" fill="' + color + '"/>');
+      }
+    });
+    if (!paths.length) return '';
+    return '<svg class="ink-overlay" viewBox="0 0 ' + imageWidth + ' ' + imageHeight +
+      '" xmlns="http://www.w3.org/2000/svg" aria-label="문제 위에 작성한 손필기">' + paths.join('') + '</svg>';
+  }
+
+  async function downloadAiReviewReport(button) {
+    var exam = examById(state.examId);
+    if (!exam) return;
+    var originalLabel = button.textContent;
+    button.disabled = true;
+    button.textContent = '보고서 생성 중…';
+    try {
+      var results = [];
+      var cards = [];
+      for (var i = 0; i < exam.questions.length; i++) {
+        var question = exam.questions[i];
+        var selected = state.answers[i];
+        var included = includedIdx(exam).indexOf(i) !== -1;
+        var correct = included && selected === question.ans;
+        var strokes = Array.isArray(state.strokes[i]) ? state.strokes[i] : [];
+        var imageData = null;
+        var overlay = '';
+        var imageEmbedded = false;
+
+        if (!isPredict(exam)) {
+          var response = await fetch(imgSrc(exam.id, question.n), { cache: 'force-cache' });
+          if (!response.ok) throw new Error((question.n) + '번 문제 이미지를 불러오지 못했습니다.');
+          imageData = await readBlobAsDataUrl(await response.blob());
+          var dimensions = await readImageSize(imageData);
+          overlay = handwritingSvg(strokes, dimensions.width, dimensions.height);
+          imageEmbedded = true;
+        }
+
+        results.push({
+          number: question.n,
+          points: question.pts || 2,
+          included: included,
+          selectedIndex: selected === undefined ? null : selected,
+          selectedOption: selected === null || selected === undefined ? null : CHOICE_LABELS[selected],
+          correctIndex: question.ans,
+          correctOption: CHOICE_LABELS[question.ans],
+          result: !included ? 'excluded' : (selected === null || selected === undefined ? 'unanswered' : (correct ? 'correct' : 'incorrect')),
+          handwriting: strokes,
+          handwritingOverlayIncluded: !!overlay,
+          imageEmbedded: imageEmbedded,
+          prompt: isPredict(exam) ? question.q : null,
+          choices: isPredict(exam) ? question.c : null,
+          explanation: isPredict(exam) ? (question.e || null) : null,
+          conceptUnit: isPredict(exam) ? (question.u || null) : null
+        });
+
+        var questionBody;
+        if (isPredict(exam)) {
+          questionBody = '<div class="prompt">' + (question.q || '') + '</div>' +
+            '<ol class="choices">' + (question.c || []).map(function (choice, choiceIndex) {
+              var choiceClasses = [];
+              if (choiceIndex === question.ans) choiceClasses.push('correct');
+              if (choiceIndex === selected) choiceClasses.push('selected');
+              return '<li' + (choiceClasses.length ? ' class="' + choiceClasses.join(' ') + '"' : '') +
+                '>' + choice + '</li>';
+            }).join('') + '</ol>' +
+            (question.e ? '<div class="explanation"><b>기존 해설</b><p>' + question.e + '</p></div>' : '');
+        } else {
+          questionBody = '<div class="sheet"><img src="' + imageData + '" alt="' + question.n +
+            '번 문제 원본"/>' + overlay + '</div>';
+          if (strokes.length && !overlay) {
+            questionBody += '<p class="note">필기는 벡터 좌표로 포함했지만, 이 획은 작성 당시 문제 이미지 좌표 정보가 없어 이미지 위에 겹쳐 표시하지 못했습니다.</p>';
+          }
+        }
+        var selectedText = selected === null || selected === undefined ? '미응답' : CHOICE_LABELS[selected];
+        var verdict = !included ? '도표 제외' : (selected === null || selected === undefined ? '미응답' : (correct ? '정답' : '오답'));
+        cards.push('<section class="question"><h2>' + question.n + '번 · ' + verdict +
+          '</h2><p>내 답안: <b>' + selectedText + '</b> · 정답: <b>' + CHOICE_LABELS[question.ans] +
+          '</b> · 배점: ' + (question.pts || 2) + '점</p>' + questionBody + '</section>');
+      }
+
+      var score = scoreExam(exam);
+      var payload = {
+        schema: 'study-notes-ai-review/v1',
+        exportedAt: new Date().toISOString(),
+        exam: { id: exam.id, label: exam.label, year: exam.year, kind: exam.kind },
+        score: score,
+        instructions: [
+          '각 오답을 문제 원문과 내 손필기를 근거로 분석하세요.',
+          '내가 선택한 선지가 왜 틀렸는지, 정답의 근거가 무엇인지 설명하세요.',
+          '부족한 개념 또는 영어 독해 기능을 문항별로 분류하고, 반복되는 약점을 요약하세요.',
+          '자료에서 확인할 수 없는 생각이나 실수 원인은 추측하지 말고 가능성으로 표시하세요.'
+        ],
+        questions: results
+      };
+      var json = JSON.stringify(payload).replace(/</g, '\\u003c');
+      var reportHtml = '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+        '<title>AI 오답 분석 보고서 - ' + esc2(exam.label) + '</title><style>' +
+        'body{font-family:system-ui,sans-serif;max-width:980px;margin:24px auto;padding:0 16px;color:#20242b;line-height:1.55}' +
+        'h1{font-size:24px}.summary,.question{border:1px solid #d9dee8;border-radius:12px;padding:16px;margin:16px 0}' +
+        '.sheet{position:relative;display:inline-block;max-width:100%;line-height:0}.sheet img{display:block;max-width:100%;height:auto}' +
+        '.ink-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}' +
+        '.choices{padding-left:28px}.choices li{padding:5px}.choices li.correct{font-weight:700;color:#16834a}.choices li.selected{outline:1px solid #c33;border-radius:5px}' +
+        '.explanation{background:#f5f7fa;padding:12px;border-radius:8px}.note{color:#8a5a00}.prompt{margin:12px 0}' +
+        '</style></head><body><h1>학습노트 · AI 오답 분석 보고서</h1>' +
+        '<div class="summary"><h2>' + esc2(exam.label) + '</h2><p>점수: ' + score.score + '/' + score.max +
+        ' · 정답: ' + score.correct + '/' + score.total + ' · 미응답: ' + score.blank + '</p>' +
+        '<h3>AI 분석 요청</h3><ol>' + payload.instructions.map(function (line) { return '<li>' + esc2(line) + '</li>'; }).join('') +
+        '</ol><p>각 문항의 이미지·답안·저장된 손필기를 함께 확인하세요.</p></div>' +
+        cards.join('') + '<script type="application/json" id="study-notes-ai-data">' + json +
+        '<\\/script></body></html>';
+      var blob = new Blob([reportHtml], { type: 'text/html;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = exam.id + '-AI-review.html';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+    } catch (error) {
+      window.alert('AI 분석 보고서를 만들지 못했습니다: ' + (error && error.message ? error.message : String(error)));
+    } finally {
+      button.disabled = false;
+      button.textContent = originalLabel;
+    }
   }
 
   function examResultMsg(pct) {
