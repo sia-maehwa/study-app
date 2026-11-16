@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'social-culture-study-shell-v1';
+const CACHE_NAME = 'social-culture-study-shell-v2';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -68,8 +68,12 @@ self.addEventListener('fetch', event => {
   }
 
   event.respondWith((async () => {
-    const cached = await caches.match(request);
-    if (cached) return cached;
+    // Stable exam images are cache-first; app scripts and styles are network-first
+    // so deployed updates become available without clearing the user's site data.
+    if (request.destination === 'image') {
+      const cachedImage = await caches.match(request);
+      if (cachedImage) return cachedImage;
+    }
 
     try {
       const response = await fetch(request);
