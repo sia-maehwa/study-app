@@ -4,7 +4,6 @@
 (function () {
   'use strict';
 
-  var EXAM_TIME = 30 * 60; /* 수능 사회탐구 30분 */
   var CHOICE_LABELS = ['①', '②', '③', '④', '⑤'];
   var HIST_KEY = 'socmul_exam_hist_v1';
   var EXAM_WRONG_KEY = 'study_exam_wrong_v1';
@@ -46,6 +45,18 @@
     return allExams().filter(function (e) { return e.id === id; })[0] || null;
   }
   function isPredict(e) { return e && e.id.indexOf('predict_') === 0; }
+  function getAssessmentProfile(exam) {
+    if (!window.StudyCourseRegistry || !exam) return null;
+    return window.StudyCourseRegistry.getAssessmentProfile(
+      'social-culture',
+      isPredict(exam) ? 'predict-mock' : 'official-mock'
+    );
+  }
+  function examDurationSec(exam) {
+    var profile = getAssessmentProfile(exam);
+    var duration = profile && Number(profile.durationSec);
+    return Number.isFinite(duration) && duration > 0 ? duration : 30 * 60;
+  }
   function imgSrc(examId, n) {
     return 'assets/exams/' + examId + '/q' + (n < 10 ? '0' + n : n) + '.jpg';
   }
@@ -278,17 +289,18 @@
   /* ─── 응시 ─── */
   function startExam(examId) {
     var app = window.AppUI;
+    var e = examById(examId);
+    if (!e) return;
     state.examId = examId;
-    state.answers = new Array(20).fill(null);
+    state.answers = new Array(e.questions.length).fill(null);
     state.idx = 0;
     state.submitted = false;
     state.penMode = 'pen';
     loadPen(examId);
     /* 첫 (포함된) 문항으로 이동 */
-    var e = examById(examId);
     var inc = includedIdx(e);
     if (inc.length && inc.indexOf(0) === -1) state.idx = inc[0];
-    state.deadline = Date.now() + EXAM_TIME * 1000;
+    state.deadline = Date.now() + examDurationSec(e) * 1000;
     if (app) app.show('examrun');
     startTimer();
   }
@@ -361,7 +373,7 @@
     var html = '<div class="exam-run-top">' +
       '<div class="exam-run-info"><span class="quiz-tag exam-tag">' + esc2(e.label) + '</span>' +
       '<span class="exam-run-q">' + (pos + 1) + ' / ' + inc.length + '</span></div>' +
-      '<div class="exam-run-right"><span class="exam-timer" id="examTimer">30:00</span>' +
+      '<div class="exam-run-right"><span class="exam-timer" id="examTimer">' + fmtTime(examDurationSec(e)) + '</span>' +
       '<button class="quiz-exit" data-exit-exam type="button">✕ 나가기</button></div></div>';
 
     html += '<div class="exam-progress"><div class="progress-track"><div class="progress-fill" style="width:' + ((pos + 1) / inc.length * 100) + '%"></div></div></div>';
