@@ -516,44 +516,85 @@
   function renderWrong() {
     var wrong = getWrong();
     var ids = Object.keys(wrong).map(Number).sort(function (a, b) { return a - b; });
+    var examWrong = window.ExamUI && window.ExamUI.getWrongNotes
+      ? window.ExamUI.getWrongNotes()
+      : [];
 
-    var html = '<div class="section-head"><h2>오답 노트</h2><span>틀렸거나 자주 틀린 문제가 여기에 쌓입니다</span></div>';
+    var html = '<div class="section-head"><h2>오답 노트</h2><span>개념 문제와 실전 모의고사의 오답을 함께 관리합니다</span></div>';
 
-    if (!ids.length) {
-      html += '<div class="empty-state"><strong>아직 오답이 없습니다</strong>문제를 풀고 틀리면 이곳에 자동으로 기록됩니다.</div>';
+    if (!ids.length && !examWrong.length) {
+      html += '<div class="empty-state"><strong>아직 오답이 없습니다</strong>개념 문제나 모의고사를 풀고 틀리면 이곳에 자동으로 기록됩니다.</div>';
       el.views.wrong.innerHTML = html;
       return;
     }
 
-    html += '<div class="quiz-nav" style="margin:0 0 var(--space-6);justify-content:flex-start">' +
-      '<button class="btn btn-primary" data-retry-all type="button">오답 전부 다시 풀기 (' + ids.length + '문항)</button>' +
-      '<button class="btn btn-ghost" data-clear-wrong type="button">전체 비우기</button></div>';
+    if (ids.length) {
+      html += '<div class="section-head" style="margin-top:var(--space-5)"><h3>개념 문제 오답</h3><span>' + ids.length + '문항</span></div>';
+      html += '<div class="quiz-nav" style="margin:0 0 var(--space-6);justify-content:flex-start">' +
+        '<button class="btn btn-primary" data-retry-all type="button">개념 오답 다시 풀기 (' + ids.length + '문항)</button>' +
+        '<button class="btn btn-ghost" data-clear-wrong type="button">개념 오답 비우기</button></div>';
+      html += '<div class="wrong-list">';
+      ids.forEach(function (qid) {
+        var q = questionById(qid);
+        if (!q) return;
+        var tries = wrong[qid];
+        html += '<div class="wrong-item"><div class="wrong-item-head">' +
+          '<span class="quiz-tag error-mode">' + esc(unitName(q.u)) + '</span>' +
+          '<span class="wrong-tries">누적 ' + tries + '회 오답</span></div>' +
+          '<div class="wrong-q">' + q.q + '</div>' +
+          '<div class="wrong-actions">' +
+          '<button class="btn btn-ghost" data-review="' + qid + '" type="button">이 문제만 다시 풀기</button>' +
+          '<button class="btn btn-ghost" data-remove="' + qid + '" type="button">목록에서 지우기</button>' +
+          '</div></div>';
+      });
+      html += '</div>';
+    }
 
-    html += '<div class="wrong-list">';
-    ids.forEach(function (qid) {
-      var q = questionById(qid);
-      var tries = wrong[qid];
-      html += '<div class="wrong-item"><div class="wrong-item-head">' +
-        '<span class="quiz-tag error-mode">' + esc(unitName(q.u)) + '</span>' +
-        '<span class="wrong-tries">누적 ' + tries + '회 오답</span></div>' +
-        '<div class="wrong-q">' + q.q + '</div>' +
-        '<div class="wrong-actions">' +
-        '<button class="btn btn-ghost" data-review="' + qid + '" type="button">이 문제만 다시 풀기</button>' +
-        '<button class="btn btn-ghost" data-remove="' + qid + '" type="button">목록에서 지우기</button>' +
-        '</div></div>';
-    });
-    html += '</div>';
+    html += '<div class="section-head" style="margin-top:var(--space-8)"><h3>모의고사 오답</h3><span>' + examWrong.length + '문항</span></div>';
+    if (examWrong.length) {
+      html += '<div class="quiz-nav" style="margin:0 0 var(--space-6);justify-content:flex-start">' +
+        '<button class="btn btn-ghost" data-clear-exam-wrong type="button">모의고사 오답 비우기</button></div>';
+      html += '<div class="wrong-list">';
+      var choiceLabels = ['①', '②', '③', '④', '⑤'];
+      examWrong.forEach(function (record) {
+        var selected = record.selectedIndex === null || record.selectedIndex === undefined
+          ? '미응답'
+          : (choiceLabels[record.selectedIndex] || '선택지 ' + (record.selectedIndex + 1));
+        var correct = choiceLabels[record.correctIndex] || '선택지 ' + (record.correctIndex + 1);
+        var when = record.lastAttemptAt ? new Date(record.lastAttemptAt).toLocaleDateString('ko-KR') : '';
+        html += '<div class="wrong-item exam-wrong-item">' +
+          '<div class="wrong-item-head">' +
+          '<span class="quiz-tag error-mode">' + esc(record.examLabel || record.examId) + '</span>' +
+          '<span class="wrong-tries">누적 ' + (Number(record.attempts) || 1) + '회 오답</span>' +
+          '</div>' +
+          '<div class="wrong-q"><b>' + Number(record.questionNumber) + '번 문항</b> · 내 답 ' + selected +
+          ' · 정답 ' + correct + ' · ' + (Number(record.points) || 2) + '점</div>' +
+          (when ? '<div class="wrong-date">' + when + ' 응시</div>' : '') +
+          '<div class="wrong-actions">' +
+          '<button class="btn btn-ghost" data-exam-retry="' + esc(record.examId) + '" type="button">해당 모의고사 다시 풀기</button>' +
+          '<button class="btn btn-ghost" data-exam-remove="' + esc(record.key) + '" type="button">목록에서 지우기</button>' +
+          '</div></div>';
+      });
+      html += '</div>';
+    } else {
+      html += '<div class="empty-state wrong-empty"><strong>모의고사 오답이 없습니다</strong>모의고사에서 틀린 문항은 여기에 자동으로 기록됩니다.</div>';
+    }
 
     el.views.wrong.innerHTML = html;
 
-    el.views.wrong.querySelector('[data-retry-all]').addEventListener('click', function () { startRetryWrong(); });
-    el.views.wrong.querySelector('[data-clear-wrong]').addEventListener('click', function () {
-      if (window.confirm('오답 노트를 전부 비울까요? 기록은 되돌릴 수 없습니다.')) {
+    var retryAll = el.views.wrong.querySelector('[data-retry-all]');
+    if (retryAll) retryAll.addEventListener('click', function () { startRetryWrong(); });
+    var clearWrong = el.views.wrong.querySelector('[data-clear-wrong]');
+    if (clearWrong) clearWrong.addEventListener('click', function () {
+      if (window.confirm('개념 문제 오답을 전부 비울까요?')) {
         setWrong({}); updateWrongBadge(); renderWrong();
       }
     });
     el.views.wrong.querySelectorAll('[data-review]').forEach(function (b) {
-      b.addEventListener('click', function () { startQuiz(questionById(parseInt(b.dataset.review, 10)).u, [parseInt(b.dataset.review, 10)]); });
+      b.addEventListener('click', function () {
+        var q = questionById(parseInt(b.dataset.review, 10));
+        if (q) startQuiz(q.u, [q.id]);
+      });
     });
     el.views.wrong.querySelectorAll('[data-remove]').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -561,6 +602,26 @@
         delete w[parseInt(b.dataset.remove, 10)];
         setWrong(w); updateWrongBadge(); renderWrong();
       });
+    });
+    el.views.wrong.querySelectorAll('[data-exam-retry]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (window.ExamUI) window.ExamUI.retryExam(b.dataset.examRetry);
+      });
+    });
+    el.views.wrong.querySelectorAll('[data-exam-remove]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (window.ExamUI) window.ExamUI.removeWrongNote(b.dataset.examRemove);
+        updateWrongBadge();
+        renderWrong();
+      });
+    });
+    var clearExamWrong = el.views.wrong.querySelector('[data-clear-exam-wrong]');
+    if (clearExamWrong) clearExamWrong.addEventListener('click', function () {
+      if (window.confirm('모의고사 오답 기록을 전부 비울까요?')) {
+        if (window.ExamUI) window.ExamUI.clearWrongNotes();
+        updateWrongBadge();
+        renderWrong();
+      }
     });
   }
 
@@ -574,6 +635,7 @@
   /* ─── 공통 ─── */
   function updateWrongBadge() {
     var count = Object.keys(getWrong()).length;
+    if (window.ExamUI && window.ExamUI.getWrongNotes) count += window.ExamUI.getWrongNotes().length;
     el.wrongBadge.hidden = count === 0;
     el.wrongBadge.textContent = count > 99 ? '99+' : String(count);
   }
