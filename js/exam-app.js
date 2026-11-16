@@ -13,6 +13,7 @@
   var DEFAULT_PEN_COLOR = '#d6336c';
 
   var state = {
+    courseId: 'social-culture',
     examId: null,
     answers: [],      /* 문항별 선택 (0~4, null=미응답) */
     idx: 0,
@@ -26,23 +27,30 @@
   };
 
   /* ─── 데이터 접근 ─── */
-  function allExams() {
-    var list = (typeof EXAMS !== 'undefined' ? EXAMS : []).slice();
-    if (typeof PREDICT_EXAMS !== 'undefined') {
-      /* 예상 모의고사 문항의 정답 필드(a)를 기출 형식(ans)으로 맞춤 */
-      PREDICT_EXAMS.forEach(function (p) {
-        list.push({
-          id: p.id, year: p.year, kind: p.kind, label: p.label, sub: p.sub,
-          questions: p.questions.map(function (q) {
-            return { n: q.n, ans: q.a, pts: q.pts, d: q.d, u: q.u, q: q.q, c: q.c, e: q.e };
-          }),
-        });
+  function courseAssessmentData(courseId) {
+    return window.StudyCourseRegistry
+      ? window.StudyCourseRegistry.getAssessmentData(courseId || state.courseId)
+      : null;
+  }
+  function allExams(courseId) {
+    var data = courseAssessmentData(courseId);
+    if (!data) return [];
+    var list = (data.officialExams || []).slice();
+    (data.practiceExams || []).forEach(function (practice) { list.push(practice); });
+    if (!window.AssessmentEngine) return list;
+    return list.map(function (assessment) {
+      var predict = isPredict(assessment);
+      var source = {};
+      Object.keys(assessment).forEach(function (key) { source[key] = assessment[key]; });
+      if (!predict) source.questionImagePattern = 'assets/exams/{assessmentId}/q{number}.jpg';
+      return window.AssessmentEngine.normalizeAssessment(source, {
+        courseId: courseId || state.courseId,
+        assessmentType: predict ? 'self-produced-practice' : 'official-exam'
       });
-    }
-    return list;
+    });
   }
   function examById(id) {
-    return allExams().filter(function (e) { return e.id === id; })[0] || null;
+    return allExams(state.courseId).filter(function (e) { return e.id === id; })[0] || null;
   }
   function isPredict(e) { return e && e.id.indexOf('predict_') === 0; }
   function getAssessmentProfile(exam) {
@@ -60,7 +68,9 @@
   }
   function unitName(u) {
     try {
-      var un = UNITS.filter(function (x) { return x.id === u; })[0];
+      var content = window.StudyCourseRegistry && window.StudyCourseRegistry.getContent(state.courseId);
+      var units = content && content.units ? content.units : [];
+      var un = units.filter(function (x) { return x.id === u; })[0];
       return un ? un.name : '';
     } catch (err) { return ''; }
   }
@@ -111,7 +121,10 @@
       var question = exam.questions[index];
       var selected = state.answers[index];
       var key = exam.id + ':' + question.n;
-      if (selected === question.ans) {
+      var evaluation = window.AssessmentEngine
+        ? window.AssessmentEngine.evaluateResponse(question, selected)
+        : { status: selected === question.ans ? 'correct' : 'incorrect' };
+      if (evaluation.status === 'correct' || evaluation.status === 'pending-manual') {
         delete records[key];
         return;
       }
@@ -120,10 +133,13 @@
         key: key,
         examId: exam.id,
         examLabel: exam.label,
-        questionNumber: question.n,
+        questionNumber: question.number || question.n,
+        responseType: question.responseType || 'single-choice',
+        response: selected === undefined ? null : selected,
         selectedIndex: selected === undefined ? null : selected,
+        correctAnswer: question.answerKey,
         correctIndex: question.ans,
-        points: question.pts || 2,
+        points: question.points || question.pts || 2,
         attempts: previous ? (Number(previous.attempts) || 1) + 1 : 1,
         lastAttemptAt: now
       };
@@ -160,25 +176,33 @@
     return r;
   }
   function maxScore(e) {
-    return includedIdx(e).reduce(function (s, i) { return s + (e.questions[i].pts || 2); }, 0);
+    return includedIdx(e).reduce(function (s, i) {
+      var question = e.questions[i];
+      return s + (question.points || question.pts || 0);
+    }, 0);
   }
 
   /* ─── 채점 ─── */
   function scoreExam(e) {
     var inc = includedIdx(e);
-    var score = 0, correct = 0, blank = 0;
+    var score = 0, correct = 0, blank = 0, pendingManual = 0;
     inc.forEach(function (i) {
       var q = e.questions[i];
       var mine = state.answers[i];
-      if (mine === null || mine === undefined) { blank++; return; }
-      if (mine === q.ans) { score += (q.pts || 2); correct++; }
+      if (mine === null || mine === undefined || mine === '') { blank++; return; }
+      var evaluation = window.AssessmentEngine
+        ? window.AssessmentEngine.evaluateResponse(q, mine)
+        : { status: mine === q.ans ? 'correct' : 'incorrect', earnedPoints: mine === q.ans ? (q.pts || 2) : 0 };
+      if (evaluation.status === 'pending-manual') { pendingManual++; return; }
+      if (evaluation.status === 'correct') { score += evaluation.earnedPoints; correct++; }
     });
-    return { score: score, max: maxScore(e), correct: correct, total: inc.length, blank: blank };
+    return { score: score, max: maxScore(e), correct: correct, total: inc.length, blank: blank, pendingManual: pendingManual };
   }
 
   /* ─── 등급컷 ─── */
   function cutsFor(e) {
-    if (isPredict(e)) return { cuts: AVG_CUTS, note: '최근 5개년(2022~2026) 15회 평균 등급컷 · 참고용' };
+    var data = courseAssessmentData(state.courseId);
+    if (isPredict(e)) return { cuts: data ? data.averageCuts : {}, note: '최근 5개년 평가원 기출 평균 등급컷 · 참고용' };
     /* 수능·모의평가 모두 원점수 등급컷은 주요 입시기관 추정치 종합(kicegg 제공). 평가원 공식 발표는 표준점수 기준임 */
     return { cuts: e.cuts, note: '주요 입시기관 원점수 추정 종합(kicegg 제공) · 참고용' };
   }
@@ -199,9 +223,14 @@
   }
 
   /* ─── 시험 목록 ─── */
-  function renderPicker(view) {
+  function renderPicker(view, courseId) {
     stopTimer();
+    state.courseId = courseId || state.courseId || 'social-culture';
     loadHistory();
+    var courseExams = allExams(state.courseId);
+    var predictExams = courseExams.filter(isPredict);
+    var officialExams = courseExams.filter(function (exam) { return !isPredict(exam); });
+    var assessmentData = courseAssessmentData(state.courseId);
     var nodopyo = excludeDopyo();
 
     var html = '<div class="hero exam-hero">' +
@@ -217,10 +246,10 @@
       '<button type="button" class="dt-switch" data-dopyo-toggle role="switch" aria-checked="' + nodopyo + '" aria-label="도표 문항 제외"><span class="dt-knob"></span></button></div>';
 
     /* 예상 모의고사 */
-    if (typeof PREDICT_EXAMS !== 'undefined') {
-      html += '<div class="section-head predict-head"><h2>수능 예상 모의고사</h2><span>기출 5개년 분석 기반 자체 제작 · 3회분</span></div>';
+    if (predictExams.length) {
+      html += '<div class="section-head predict-head"><h2>연습 모의고사</h2><span>과목별 학습 콘텐츠</span></div>';
       html += '<div class="exam-year-row"><div class="exam-cards predict-cards">';
-      PREDICT_EXAMS.forEach(function (e) {
+      predictExams.forEach(function (e) {
         var best = bestRecord(e.id);
         html += '<button type="button" class="exam-card predict-card" data-start-exam="' + e.id + '">' +
           '<span class="exam-card-kind">자체 제작</span>' +
@@ -235,10 +264,14 @@
       html += '<details class="predict-note"><summary>이 예상 문제지는 어떻게 만들었나요? (기출 분석 노트)</summary><div class="pn-body">' +
         '<p>최근 5개년(2022~2026) 평가원 기출 15회, 300문항의 <b>단원별 출제 비중</b>을 분석해 그 분포를 따랐고, 최근 수능에서 반복되는 유형(빈출 개념 조합, 3점 변별력 문항 형식)을 참고해 자체 제작했습니다. 실제 출제 문항과 무관하며 학습용 예상 문제입니다.</p>' +
         '<div class="unit-freq">';
+      var unitFrequency = assessmentData && assessmentData.unitFrequency ? assessmentData.unitFrequency : {};
+      var content = window.StudyCourseRegistry && window.StudyCourseRegistry.getContent(state.courseId);
+      var courseUnits = content && content.units ? content.units : [];
       var freqTotal = 0;
-      [1, 2, 3, 4, 5].forEach(function (u) { freqTotal += UNIT_FREQ[u] || 0; });
-      [1, 2, 3, 4, 5].forEach(function (u) {
-        var n = UNIT_FREQ[u] || 0;
+      courseUnits.forEach(function (unit) { freqTotal += unitFrequency[unit.id] || 0; });
+      courseUnits.forEach(function (unit) {
+        var u = unit.id;
+        var n = unitFrequency[u] || 0;
         html += '<div class="uf-row"><span class="uf-name">' + esc2(unitName(u)) + '</span>' +
           '<span class="uf-bar"><span class="uf-fill" style="width:' + Math.round(n / 83 * 100) + '%"></span></span>' +
           '<span class="uf-val">' + n + '문항</span></div>';
@@ -250,13 +283,13 @@
     html += '<div class="section-head" style="margin-top:var(--space-8)"><h2>평가원 기출 5개년</h2><span>총 15회 · 300문항</span></div>';
 
     var years = [];
-    allExams().forEach(function (e) { if (e.year && years.indexOf(e.year) === -1) years.push(e.year); });
+    courseExams.forEach(function (e) { if (e.year && years.indexOf(e.year) === -1) years.push(e.year); });
     years.sort(function (a, b) { return b - a; });
 
     years.forEach(function (y) {
       html += '<div class="exam-year-row"><h3 class="exam-year">' + y + '학년도</h3><div class="exam-cards">';
       ['suneung', 'june', 'sept'].forEach(function (kind) {
-        var e = EXAMS.filter(function (x) { return x.year === y && x.kind === kind; })[0];
+        var e = officialExams.filter(function (x) { return x.year === y && x.kind === kind; })[0];
         if (!e) return;
         var best = bestRecord(e.id);
         html += '<button type="button" class="exam-card" data-start-exam="' + e.id + '">' +
@@ -465,11 +498,17 @@
     bindPen(view, state.idx);
   }
 
+  function hasResponse(value) {
+    if (value === null || value === undefined || value === '') return false;
+    if (Array.isArray(value)) return value.length > 0;
+    return true;
+  }
+
   function submitExam(auto) {
     if (state.submitted) return;
     var e = examById(state.examId);
     var inc = includedIdx(e);
-    var unanswered = inc.filter(function (i) { return state.answers[i] === null || state.answers[i] === undefined; }).length;
+    var unanswered = inc.filter(function (i) { return !hasResponse(state.answers[i]); }).length;
     if (!auto && unanswered > 0) {
       if (!window.confirm(unanswered + '문항이 미표기 상태입니다. 그대로 제출할까요?')) return;
     }
