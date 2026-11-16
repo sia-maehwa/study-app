@@ -152,6 +152,9 @@
     }
     function isControlTarget(target) {
       if (!target || !target.closest) return false;
+      /* 정답 선택지 버튼은 펜으로 표시할 수 있게 필기 표면으로 허용합니다.
+         펜 도구와 일반 조작 버튼은 기존처럼 필기 시작 지점에서 제외합니다. */
+      if (target.closest('[data-choice], [data-omr]')) return false;
       return !!target.closest('button, a, input, textarea, select, summary, [role="button"], .pen-bar, [data-no-pen]');
     }
     function lastPoint() {
@@ -193,6 +196,9 @@
     function onPointerDown(event) {
       if (event.pointerType !== 'pen' || mode === 'off' || activeStroke) return;
       if (!isInsideRoot(event.target) || isControlTarget(event.target)) return;
+      /* 선택지 위에서 펜으로 그릴 때 답안 버튼의 합성 click이 발생하지 않게 합니다.
+         손가락 입력과 펜 모드 off 상태의 선택 동작은 그대로 유지됩니다. */
+      if (event.cancelable) event.preventDefault();
 
       activePointerId = event.pointerId;
       activeStroke = {
