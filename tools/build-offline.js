@@ -27,6 +27,10 @@ function validateQuestionData() {
   assert(socialCulture.content.unitCount === 5 && socialCulture.content.conceptQuestionCount === 62, 'Course content metadata does not match the existing question bank.');
   const officialProfile = registry.getAssessmentProfile('social-culture', 'official-mock');
   const predictProfile = registry.getAssessmentProfile('social-culture', 'predict-mock');
+  const matchedOfficial = registry.findAssessmentProfileForExam({ id: '2026_suneung', kind: 'suneung' });
+  const matchedPredict = registry.findAssessmentProfileForExam({ id: 'predict_mock_1', kind: 'predict' });
+  assert(matchedOfficial && matchedOfficial.profile.id === 'official-mock', 'Official exam profile matching failed.');
+  assert(matchedPredict && matchedPredict.profile.id === 'predict-mock', 'Practice exam profile matching failed.');
   for (const profile of [officialProfile, predictProfile]) {
     assert(profile && profile.durationSec === 1800 && profile.questionCount === 20 && profile.choiceCount === 5 && profile.maxScore === 50, 'An assessment profile does not match the current mock exam format.');
   }
