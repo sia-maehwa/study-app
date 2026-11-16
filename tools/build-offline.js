@@ -10,11 +10,30 @@ const write = (file, value) => fs.writeFileSync(path.join(root, file), value, 'u
 function assert(ok, message) { if (!ok) throw new Error(message); }
 
 function validateQuestionData() {
-  const context = {};
+  const context = { window: {} };
   vm.createContext(context);
+  vm.runInContext(read('js/course-registry.js'), context, { filename: 'js/course-registry.js' });
   vm.runInContext(read('js/data.js'), context, { filename: 'js/data.js' });
   vm.runInContext(read('js/exams.js'), context, { filename: 'js/exams.js' });
   vm.runInContext(read('js/predict.js'), context, { filename: 'js/predict.js' });
+
+  const registry = context.window.StudyCourseRegistry;
+  assert(registry && typeof registry.listAvailable === 'function', 'Course registry did not initialize.');
+  const availableCourses = Array.from(registry.listAvailable());
+  assert(availableCourses.length === 1, 'Expected only the content-ready Social & Culture course to be available.');
+  const socialCulture = registry.get('social-culture');
+  assert(socialCulture && socialCulture.status === 'available', 'The Social & Culture course is missing or unavailable.');
+  assert(socialCulture.educationStage === 'high-school' && socialCulture.discipline === 'social-sciences', 'The Social & Culture course classification is invalid.');
+  assert(socialCulture.content.unitCount === 5 && socialCulture.content.conceptQuestionCount === 62, 'Course content metadata does not match the existing question bank.');
+  const officialProfile = registry.getAssessmentProfile('social-culture', 'official-mock');
+  const predictProfile = registry.getAssessmentProfile('social-culture', 'predict-mock');
+  const matchedOfficial = registry.findAssessmentProfileForExam({ id: '2026_suneung', kind: 'suneung' });
+  const matchedPredict = registry.findAssessmentProfileForExam({ id: 'predict_mock_1', kind: 'predict' });
+  assert(matchedOfficial && matchedOfficial.profile.id === 'official-mock', 'Official exam profile matching failed.');
+  assert(matchedPredict && matchedPredict.profile.id === 'predict-mock', 'Practice exam profile matching failed.');
+  for (const profile of [officialProfile, predictProfile]) {
+    assert(profile && profile.durationSec === 1800 && profile.questionCount === 20 && profile.choiceCount === 5 && profile.maxScore === 50, 'An assessment profile does not match the current mock exam format.');
+  }
 
   const base = vm.runInContext('({ units: UNITS, questions: QUESTIONS, concepts: CONCEPTS })', context);
   assert(base.units.length === 5, 'Expected 5 units; found ' + base.units.length + '.');
@@ -69,7 +88,7 @@ function validateRuntimeAssets(exams) {
   }
 
   const requiredScripts = [
-    'js/data.js', 'js/exams.js', 'js/storage.js', 'js/predict.js',
+    'js/data.js', 'js/course-registry.js', 'js/exams.js', 'js/storage.js', 'js/predict.js',
     'js/game.js', 'js/pen-tools.js', 'js/exam-app.js', 'js/app.js'
   ];
   for (const file of requiredScripts) {
@@ -122,7 +141,7 @@ function main() {
 
   assert(/<link\b(?=[^>]*\brel=["']stylesheet["'])[^>]*\bhref=["']css\/style\.css["'][^>]*>/i.test(html),
     'The source template must load the local css/style.css file.');
-  for (const file of ['js/data.js', 'js/exams.js', 'js/storage.js', 'js/predict.js', 'js/game.js', 'js/pen-tools.js', 'js/exam-app.js', 'js/app.js']) {
+  for (const file of ['js/data.js', 'js/course-registry.js', 'js/exams.js', 'js/storage.js', 'js/predict.js', 'js/game.js', 'js/pen-tools.js', 'js/exam-app.js', 'js/app.js']) {
     const scriptRef = file === 'js/pen-tools.js'
       ? 'src="js/pen-tools.js?v=20261117-ai-report-1"'
       : (file === 'js/exam-app.js'

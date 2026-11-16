@@ -9,14 +9,10 @@
   var DEFAULT_PEN_COLOR = '#d6336c';
   var SELECTED_SUBJECT_KEY = 'study_selected_subject_v1';
   var LEGACY_SUBJECT_KEY = 'study_active_subject_v1';
-  /* 현재 실제 문제 데이터가 준비된 과목만 선택지로 표시합니다. */
-  var SUBJECTS = [{
-    id: 'social-culture',
-    title: '사회·문화',
-    curriculum: '2015 개정 교육과정',
-    description: '사회·문화 핵심 개념과 평가원 기출을 학습합니다.',
-    detail: '5개 단원 · 개념 문제 62문항 · 기출 15회분'
-  }];
+  /* 실제 학습 콘텐츠가 연결된 과목만 레지스트리에서 가져옵니다. */
+  var SUBJECTS = window.StudyCourseRegistry
+    ? window.StudyCourseRegistry.listAvailable()
+    : [];
 
   var UNIT_COLORS = {
     1: '#2456e6',
@@ -134,6 +130,11 @@
     return saved;
   }
 
+  function getSelectedCourse() {
+    var id = getSelectedSubject();
+    return window.StudyCourseRegistry && id ? window.StudyCourseRegistry.get(id) : null;
+  }
+
   /* ─── 앱 상태 ─── */
   var initialView = getSelectedSubject() ? 'home' : 'subject-select';
   var state = { view: initialView, unit: 0, ids: [], idx: 0, answered: {}, results: [], mode: 'unit', penMode: 'pen', penColor: storage.getItem(PEN_COLOR_KEY) || DEFAULT_PEN_COLOR };
@@ -185,9 +186,9 @@
 
     SUBJECTS.forEach(function (subject) {
       html += '<button type="button" class="subject-pick-button" data-select-subject="' + esc(subject.id) + '">' +
-        '<span class="subject-pick-mark" aria-hidden="true">社</span>' +
+        '<span class="subject-pick-mark" aria-hidden="true">' + esc(subject.symbol || '•') + '</span>' +
         '<span class="subject-pick-copy"><strong>' + esc(subject.title) + '</strong>' +
-        '<small>' + esc(subject.curriculum) + '</small><span>' + esc(subject.detail) + '</span></span>' +
+        '<small>' + esc(subject.curriculum && subject.curriculum.name ? subject.curriculum.name : subject.curriculum) + '</small><span>' + esc(subject.detail) + '</span></span>' +
         '<span class="subject-pick-action">' + (selected === subject.id ? '선택됨' : '선택하기') + ' <span aria-hidden="true">→</span></span>' +
         '</button>';
     });
@@ -208,16 +209,26 @@
     var stats = getStats();
     var wrong = getWrong();
     var wrongCount = Object.keys(wrong).length;
+    var course = getSelectedCourse();
+    var home = course && course.home ? course.home : {
+      kicker: '',
+      heading: ['학습 과목을 선택해 주세요'],
+      description: '',
+      examBannerLabel: '',
+      unitSectionLabel: '단원 선택',
+      unitSectionSubtitle: ''
+    };
+    var content = course && course.content ? course.content : { conceptQuestionCount: QUESTIONS.length };
 
     var html = '<div class="hero">' +
-      '<span class="hero-kicker">2015 개정 교육과정 · 사회·문화</span>' +
-      '<h1>단원을 골라 개념 문제로<br>수능 감각을 연습하세요</h1>' +
-      '<p>수능·평가원 기출 출제 경향을 반영해 제작한 개념 문제 ' + QUESTIONS.length + '문항. 틀린 문제는 자동으로 오답 노트에 쌓이고, 단원별 정답률로 취약 단원을 확인할 수 있습니다.</p>' +
+      '<span class="hero-kicker">' + esc(home.kicker) + '</span>' +
+      '<h1>' + home.heading.map(esc).join('<br>') + '</h1>' +
+      '<p>' + esc(home.description) + ' ' + content.conceptQuestionCount + '문항. 틀린 문제는 자동으로 오답 노트에 쌓이고, 단원별 정답률로 취약 단원을 확인할 수 있습니다.</p>' +
       '</div>';
 
     html += '<a class="exam-banner" href="#" data-nav-exam>' +
       '<span class="eb-badge">실전 모의고사</span>' +
-      '<span class="eb-title">평가원 기출 5개년 · 15회분 (수능·6월·9월)</span>' +
+      '<span class="eb-title">' + esc(home.examBannerLabel) + '</span>' +
       '<span class="eb-cta">응시하기 →</span></a>';
 
     html += '<div class="stat-strip">' +
@@ -226,7 +237,7 @@
       statCard('오답 노트', wrongCount + '<small style="font-size:.55em">문항</small>', true) +
       '</div>';
 
-    html += '<div class="section-head"><h2>단원 선택</h2><span>2015 개정 교육과정 사회·문화</span></div>';
+    html += '<div class="section-head"><h2>' + esc(home.unitSectionLabel) + '</h2><span>' + esc(home.unitSectionSubtitle) + '</span></div>';
     html += '<div class="unit-grid">';
 
     UNITS.forEach(function (u) {
