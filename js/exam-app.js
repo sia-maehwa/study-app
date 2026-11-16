@@ -717,18 +717,20 @@
       '<button class="btn btn-ghost" data-exam-list type="button">시험지 목록으로</button>' +
       '</div></div>';
 
-    /* 등급컷 표 */
-    if (!r.pendingManual) html += '<div class="q-card cut-card"><h3 class="cut-title">원점수 등급컷</h3>' +
-      (scaledNote ? '<p class="cut-warn">' + scaledNote + '</p>' : '') +
-      '<table class="cut-table"><thead><tr><th>등급</th>';
-    for (var g = 1; g <= 8; g++) html += '<th>' + g + '</th>';
-    html += '<th>9등급</th></tr></thead><tbody><tr><th>원점수</th>';
-    for (g = 1; g <= 8; g++) {
-      html += '<td class="' + (myGrade === g ? 'mine' : '') + '">' + cf.cuts[String(g)] + '점 이상</td>';
+    /* 등급컷 표 — 수동 채점이 남아 있으면 점수 확정 전이므로 표시하지 않습니다. */
+    if (!r.pendingManual) {
+      html += '<div class="q-card cut-card"><h3 class="cut-title">원점수 등급컷</h3>' +
+        (scaledNote ? '<p class="cut-warn">' + scaledNote + '</p>' : '') +
+        '<table class="cut-table"><thead><tr><th>등급</th>';
+      for (var g = 1; g <= 8; g++) html += '<th>' + g + '</th>';
+      html += '<th>9등급</th></tr></thead><tbody><tr><th>원점수</th>';
+      for (g = 1; g <= 8; g++) {
+        html += '<td class="' + (myGrade === g ? 'mine' : '') + '">' + cf.cuts[String(g)] + '점 이상</td>';
+      }
+      html += '<td class="' + (myGrade === 9 ? 'mine' : '') + '">—</td></tr></tbody></table>' +
+        '<p class="cut-src">' + cf.note + ' · 내 점수: ' + gradeScore + '점 → <b>' + myGrade + '등급</b></p>' +
+        '<p class="cut-src dim">등급컷은 시험마다 난이도에 따라 달라지며, 위 수치는 해당 회차 실제(또는 추정) 값입니다.</p></div>';
     }
-    html += '<td class="' + (myGrade === 9 ? 'mine' : '') + '">—</td></tr></tbody></table>' +
-      '<p class="cut-src">' + cf.note + ' · 내 점수: ' + gradeScore + '점 → <b>' + myGrade + '등급</b></p>' +
-      '<p class="cut-src dim">등급컷은 시험마다 난이도에 따라 달라지며, 위 수치는 해당 회차 실제(또는 추정) 값입니다.</p></div>';
 
     /* 문항별 결과 */
     html += '<div class="q-card"><h3 style="font-size:var(--text-lg);font-weight:800;margin-bottom:var(--space-4)">문항별 결과</h3>' +
@@ -865,14 +867,21 @@
         var question = exam.questions[i];
         var selected = state.answers[i];
         var included = includedIdx(exam).indexOf(i) !== -1;
-        var correct = included && selected === question.ans;
+        var evaluation = window.AssessmentEngine.evaluateResponse(question, selected);
+        var correct = included && evaluation.status === 'correct';
         var strokes = Array.isArray(state.strokes[i]) ? state.strokes[i] : [];
+        var stimulus = question.stimulus || null;
+        var stimulusAssets = stimulus && Array.isArray(stimulus.assets) ? stimulus.assets : [];
+        var imagePath = stimulus && stimulus.type === 'image'
+          ? (stimulus.src || stimulus.url || stimulusAssets[0] || '')
+          : '';
+        if (imagePath && typeof imagePath === 'object') imagePath = imagePath.url || imagePath.src || '';
         var imageData = null;
         var overlay = '';
         var imageEmbedded = false;
 
-        if (!isPredict(exam)) {
-          var response = await fetch(imgSrc(exam.id, question.n), { cache: 'force-cache' });
+        if (imagePath) {
+          var response = await fetch(imagePath, { cache: 'force-cache' });
           if (!response.ok) throw new Error((question.n) + '번 문제 이미지를 불러오지 못했습니다.');
           imageData = await readBlobAsDataUrl(await response.blob());
           var dimensions = await readImageSize(imageData);
@@ -881,46 +890,46 @@
         }
 
         results.push({
-          number: question.n,
-          points: question.pts || 2,
+          number: question.number || question.n,
+          itemType: question.itemType,
+          responseType: question.responseType,
+          points: question.points || question.pts || 0,
           included: included,
-          selectedIndex: selected === undefined ? null : selected,
-          selectedOption: selected === null || selected === undefined ? null : CHOICE_LABELS[selected],
-          correctIndex: question.ans,
-          correctOption: CHOICE_LABELS[question.ans],
-          result: !included ? 'excluded' : (selected === null || selected === undefined ? 'unanswered' : (correct ? 'correct' : 'incorrect')),
+          response: selected === undefined ? null : selected,
+          selectedResponse: formattedResponse(question, selected),
+          answerKey: question.answerKey,
+          correctAnswer: formattedAnswer(question),
+          result: !included ? 'excluded' : evaluation.status,
           handwriting: strokes,
           handwritingOverlayIncluded: !!overlay,
           imageEmbedded: imageEmbedded,
-          prompt: isPredict(exam) ? question.q : null,
-          choices: isPredict(exam) ? question.c : null,
-          explanation: isPredict(exam) ? (question.e || null) : null,
-          conceptUnit: isPredict(exam) ? (question.u || null) : null
+          stimulus: stimulus,
+          prompt: question.prompt || question.q || null,
+          choices: question.options || question.c || null,
+          explanation: question.explanation || question.e || null,
+          conceptUnit: question.u || null
         });
 
-        var questionBody;
-        if (isPredict(exam)) {
-          questionBody = '<div class="prompt">' + (question.q || '') + '</div>' +
-            '<ol class="choices">' + (question.c || []).map(function (choice, choiceIndex) {
-              var choiceClasses = [];
-              if (choiceIndex === question.ans) choiceClasses.push('correct');
-              if (choiceIndex === selected) choiceClasses.push('selected');
-              return '<li' + (choiceClasses.length ? ' class="' + choiceClasses.join(' ') + '"' : '') +
-                '>' + choice + '</li>';
-            }).join('') + '</ol>' +
-            (question.e ? '<div class="explanation"><b>기존 해설</b><p>' + question.e + '</p></div>' : '');
-        } else {
-          questionBody = '<div class="sheet"><img src="' + imageData + '" alt="' + question.n +
-            '번 문제 원본"/>' + overlay + '</div>';
-          if (strokes.length && !overlay) {
-            questionBody += '<p class="note">필기는 벡터 좌표로 포함했지만, 이 획은 작성 당시 문제 이미지 좌표 정보가 없어 이미지 위에 겹쳐 표시하지 못했습니다.</p>';
-          }
+        var questionBody = imageData
+          ? '<div class="sheet"><img src="' + imageData + '" alt="' + question.n +
+            '번 문제 원본"/>' + overlay + '</div>'
+          : questionStimulusHtml(question, exam, i);
+        questionBody += reviewChoiceHtml(question, selected);
+        if (strokes.length && !overlay && imagePath) {
+          questionBody += '<p class="note">필기는 벡터 좌표로 포함했지만, 이 획은 작성 당시 문제 이미지 좌표 정보가 없어 이미지 위에 겹쳐 표시하지 못했습니다.</p>';
         }
-        var selectedText = selected === null || selected === undefined ? '미응답' : CHOICE_LABELS[selected];
-        var verdict = !included ? '도표 제외' : (selected === null || selected === undefined ? '미응답' : (correct ? '정답' : '오답'));
-        cards.push('<section class="question"><h2>' + question.n + '번 · ' + verdict +
-          '</h2><p>내 답안: <b>' + selectedText + '</b> · 정답: <b>' + CHOICE_LABELS[question.ans] +
-          '</b> · 배점: ' + (question.pts || 2) + '점</p>' + questionBody + '</section>');
+        if (question.explanation || question.e) {
+          questionBody += '<div class="explanation"><b>기존 해설</b><p>' +
+            (question.explanation || question.e) + '</p></div>';
+        }
+        var selectedText = formattedResponse(question, selected);
+        var correctText = formattedAnswer(question);
+        var verdict = !included ? '제외' :
+          (evaluation.status === 'pending-manual' ? '채점 대기' :
+            (evaluation.status === 'unanswered' ? '미응답' : (correct ? '정답' : '오답')));
+        cards.push('<section class="question"><h2>' + (question.number || question.n) + '번 · ' + verdict +
+          '</h2><p>내 답안: <b>' + esc2(selectedText) + '</b> · 정답: <b>' + esc2(correctText) +
+          '</b> · 배점: ' + (question.points || question.pts || 0) + '점</p>' + questionBody + '</section>');
       }
 
       var score = scoreExam(exam);
