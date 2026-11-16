@@ -1,10 +1,10 @@
 'use strict';
 
-const CACHE_NAME = 'social-culture-study-shell-v2';
+const CACHE_NAME = 'social-culture-study-shell-v3';
 const CORE_ASSETS = [
   './',
   './index.html',
-  './manifest.webmanifest',
+  './manifest.webmanifest?v=20261116-name-2',
   './assets/app-icon.svg',
   './assets/app-icon-192.png',
   './assets/app-icon-512.png',
