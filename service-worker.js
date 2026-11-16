@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'social-culture-study-shell-v4';
+const CACHE_NAME = 'social-culture-study-shell-v5';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -15,7 +15,7 @@ const CORE_ASSETS = [
   './js/predict.js',
   './js/game.js',
   './js/pen-tools.js?v=20261117-ai-report-1',
-  './js/exam-app.js',
+  './js/exam-app.js?v=20261117-mock-wrong-1',
   './js/app.js'
 ];
 
