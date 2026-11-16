@@ -54,7 +54,7 @@
           choiceCount: 5,
           pointValues: [2, 3],
           maxScore: 50,
-          sessionKinds: ['predict']
+          idPrefix: 'predict_'
         }
       ]
     }
@@ -76,10 +76,29 @@
     })[0] || null;
   }
 
+  function findAssessmentProfileForExam(exam) {
+    if (!exam) return null;
+    var match = null;
+    courses.some(function (course) {
+      (course.assessmentProfiles || []).some(function (profile) {
+        var prefixMatch = profile.idPrefix && String(exam.id || '').indexOf(profile.idPrefix) === 0;
+        var kindMatch = Array.isArray(profile.sessionKinds) && profile.sessionKinds.indexOf(exam.kind) !== -1;
+        if (prefixMatch || kindMatch) {
+          match = { course: course, profile: profile };
+          return true;
+        }
+        return false;
+      });
+      return match !== null;
+    });
+    return match;
+  }
+
   global.StudyCourseRegistry = {
     version: 1,
     get: get,
     listAvailable: listAvailable,
-    getAssessmentProfile: getAssessmentProfile
+    getAssessmentProfile: getAssessmentProfile,
+    findAssessmentProfileForExam: findAssessmentProfileForExam
   };
 })(window);
