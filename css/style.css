@@ -51,6 +51,7 @@
   --shadow-lg: 0 12px 34px rgba(31, 39, 51, 0.14);
 
   --content-default: 860px;
+  --site-header-height: 68px;
 }
 
 /* ─── 기본 스타일 ─── */
@@ -61,10 +62,12 @@ html {
   -webkit-text-size-adjust: none; text-size-adjust: none;
   -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  scroll-padding-top: var(--site-header-height);
 }
 
 body {
   min-height: 100dvh;
+  padding-top: var(--site-header-height);
   line-height: 1.65;
   font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   font-size: var(--text-base);
@@ -105,13 +108,15 @@ p, li, figcaption { text-wrap: pretty; }
 
 /* ─── 헤더 ─── */
 .site-header {
-  position: sticky; top: 0; z-index: 50;
-  background: rgba(244, 246, 248, 0.86);
+  /* 문서 스크롤 및 터치 제스처와 분리해 앱 상단바를 항상 같은 위치에 고정합니다. */
+  position: fixed; inset: 0 0 auto; width: 100%; height: var(--site-header-height);
+  z-index: 50;
+  background: rgba(244, 246, 248, 0.96);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--color-divider);
 }
 .header-inner {
-  width: 100%; max-width: 1440px;
+  width: 100%; max-width: 1440px; height: 100%;
   margin: 0 auto; padding: var(--space-3) clamp(16px, 3vw, 40px);
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
 }
@@ -450,6 +455,11 @@ p, li, figcaption { text-wrap: pretty; }
   text-align: center;
 }
 .site-footer p { font-size: var(--text-xs); color: var(--color-text-faint); margin: 0 auto; max-width: 68ch; }
+
+/* 두 줄 헤더가 필요한 태블릿/모바일의 고정 높이입니다. */
+@media (max-width: 980px) {
+  :root { --site-header-height: 108px; }
+}
 
 /* 넓은 태블릿/좁은 데스크톱에서는 로고와 메뉴를 분리해 텍스트가 눌리지 않게 합니다. */
 @media (max-width: 980px) and (min-width: 641px) {
