@@ -152,6 +152,11 @@
     });
     normalized.items = normalized.questions;
     normalized.questionCount = normalized.questions.length;
+    normalized.totalPoints = normalized.questions.reduce(function (total, question) {
+      return total + question.points;
+    }, 0);
+    normalized.maxScore = Number(assessment.maxScore);
+    if (!Number.isFinite(normalized.maxScore) || normalized.maxScore <= 0) normalized.maxScore = normalized.totalPoints;
     return normalized;
   }
 
