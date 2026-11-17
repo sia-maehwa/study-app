@@ -128,6 +128,8 @@ function validateQuestionData() {
   assert(engine.evaluateResponse(multi, []).status === 'unanswered', 'An empty multi-select response must be unanswered.');
   assert(engine.evaluateResponse(short, '   ').status === 'unanswered', 'A whitespace-only short answer must be unanswered.');
   assert(engine.evaluateResponse(essay, 'written response', { earnedPoints: 4 }).earnedPoints === 4, 'Manual rubric score handling failed.');
+  assert(engine.evaluateResponse(essay, 'written response', { earnedPoints: 6 }).earnedPoints === 5, 'Manual rubric scores must be capped at the question maximum.');
+  assert(engine.gradeAttempt([essay], ['written response'], { 0: { earnedPoints: 4 } }).earnedPoints === 4, 'Manual grading must be included in attempt totals.');
   assert(engine.validateQuestion(essay).valid && engine.validateQuestion(code).valid, 'Manual-review configuration validation failed.');
   assert(engine.gradeAttempt([single, multi], [1, [0, 2]]).earnedPoints === 5, 'Generic attempt aggregation failed.');
   return { exams, conceptQuestions: base.questions.length, predictQuestions: predict.reduce((sum, exam) => sum + exam.questions.length, 0) };
@@ -200,7 +202,7 @@ function main() {
     'src="js/exams.js"',
     'src="js/predict.js"',
     'src="js/assessment-engine.js"',
-    'src="js/exam-app.js?v=20261117-assessment-engine-1"'
+    'src="js/exam-app.js?v=20261117-manual-grade-1"'
   ].map(ref => html.indexOf(ref));
   assert(assessmentLoadOrder.every(position => position >= 0) &&
     assessmentLoadOrder.every((position, index) => index === 0 || position > assessmentLoadOrder[index - 1]),
@@ -217,12 +219,14 @@ function main() {
     const scriptRef = file === 'js/pen-tools.js'
       ? 'src="js/pen-tools.js?v=20261117-ai-report-1"'
       : (file === 'js/exam-app.js'
-        ? 'src="js/exam-app.js?v=20261117-assessment-engine-1"'
+        ? 'src="js/exam-app.js?v=20261117-manual-grade-1"'
         : 'src="' + file + '"');
     assert(html.includes(scriptRef), 'The source template is missing ' + file + '.');
   }
   assert(examApp.includes("return 'assets/exams/'"),
     'The exam renderer must use ordinary relative exam-image paths.');
+  assert(examApp.includes('data-manual-save') && examApp.includes('data-manual-score') && examApp.includes('study_manual_grades_v1'),
+    'The exam UI must expose persisted manual grading controls for essay/code responses.');
   assert(!/https?:\/\//i.test(html.replace(/<link rel="icon" href="data:image\/svg\+xml,[^"]*"/, '')),
     'The runtime template must not depend on an external URL.');
 
