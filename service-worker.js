@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'social-culture-study-shell-v14';
+const CACHE_NAME = 'social-culture-study-shell-v15';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -11,6 +11,7 @@ const CORE_ASSETS = [
   './css/style.css',
   './courses/social-culture/content.js',
   './courses/social-culture/assessments.js',
+  './courses/english/assessments.js',
   './js/data.js',
   './js/course-registry.js',
   './js/exams.js',
