@@ -207,7 +207,7 @@ function main() {
     'src="js/exams.js"',
     'src="js/predict.js"',
     'src="js/assessment-engine.js"',
-    'src="js/exam-app.js?v=20261117-manual-grade-1"'
+    'src="js/exam-app.js?v=20261117-attempt-history-1"'
   ].map(ref => html.indexOf(ref));
   assert(assessmentLoadOrder.every(position => position >= 0) &&
     assessmentLoadOrder.every((position, index) => index === 0 || position > assessmentLoadOrder[index - 1]),
@@ -224,7 +224,7 @@ function main() {
     const scriptRef = file === 'js/pen-tools.js'
       ? 'src="js/pen-tools.js?v=20261117-ai-report-1"'
       : (file === 'js/exam-app.js'
-        ? 'src="js/exam-app.js?v=20261117-manual-grade-1"'
+        ? 'src="js/exam-app.js?v=20261117-attempt-history-1"'
         : 'src="' + file + '"');
     assert(html.includes(scriptRef), 'The source template is missing ' + file + '.');
   }
@@ -232,6 +232,10 @@ function main() {
     'The exam renderer must use ordinary relative exam-image paths.');
   assert(examApp.includes('data-manual-save') && examApp.includes('data-manual-score') && examApp.includes('study_manual_grades_v1'),
     'The exam UI must expose persisted manual grading controls for essay/code responses.');
+  assert(examApp.includes('study_exam_attempts_v1') && examApp.includes('saveAttemptSnapshot'),
+    'Exam submissions must persist full attempt snapshots.');
+  assert(examApp.includes('data-open-attempt') && examApp.includes('function openAttempt'),
+    'The exam picker must reopen saved attempts for review and grading edits.');
   assert(!/https?:\/\//i.test(html.replace(/<link rel="icon" href="data:image\/svg\+xml,[^"]*"/, '')),
     'The runtime template must not depend on an external URL.');
 
