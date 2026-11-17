@@ -567,11 +567,28 @@
         '<button class="btn btn-ghost" data-clear-exam-wrong type="button">모의고사 오답 비우기</button></div>';
       html += '<div class="wrong-list">';
       var choiceLabels = ['①', '②', '③', '④', '⑤'];
+      function formatExamWrongValue(value, responseType) {
+        if (value === null || value === undefined || value === '') return '미응답';
+        var values = Array.isArray(value) ? value : [value];
+        if (responseType === 'single-choice' || responseType === 'multiple-select') {
+          return values.map(function (item) {
+            var index = typeof item === 'number' ? item :
+              (/^\\d+$/.test(String(item)) ? Number(item) : -1);
+            return index >= 0 ? (choiceLabels[index] || '선택지 ' + (index + 1)) : esc(item);
+          }).join(', ');
+        }
+        if (value && typeof value === 'object') {
+          if (value.value !== undefined) return esc(value.value);
+          return esc(JSON.stringify(value));
+        }
+        return esc(value);
+      }
       examWrong.forEach(function (record) {
-        var selected = record.selectedIndex === null || record.selectedIndex === undefined
-          ? '미응답'
-          : (choiceLabels[record.selectedIndex] || '선택지 ' + (record.selectedIndex + 1));
-        var correct = choiceLabels[record.correctIndex] || '선택지 ' + (record.correctIndex + 1);
+        var responseType = record.responseType || 'single-choice';
+        var selectedValue = record.response !== undefined ? record.response : record.selectedIndex;
+        var correctValue = record.correctAnswer !== undefined ? record.correctAnswer : record.correctIndex;
+        var selected = record.responseDisplay || formatExamWrongValue(selectedValue, responseType);
+        var correct = record.correctDisplay || formatExamWrongValue(correctValue, responseType);
         var when = record.lastAttemptAt ? new Date(record.lastAttemptAt).toLocaleDateString('ko-KR') : '';
         html += '<div class="wrong-item exam-wrong-item">' +
           '<div class="wrong-item-head">' +
@@ -582,7 +599,7 @@
           ' · 정답 ' + correct + ' · ' + (Number(record.points) || 2) + '점</div>' +
           (when ? '<div class="wrong-date">' + when + ' 응시</div>' : '') +
           '<div class="wrong-actions">' +
-          '<button class="btn btn-ghost" data-exam-retry="' + esc(record.examId) + '" type="button">해당 모의고사 다시 풀기</button>' +
+          '<button class="btn btn-ghost" data-exam-retry="' + esc(record.examId) + '" data-exam-course="' + esc(record.courseId || 'social-culture') + '" type="button">해당 모의고사 다시 풀기</button>' +
           '<button class="btn btn-ghost" data-exam-remove="' + esc(record.key) + '" type="button">목록에서 지우기</button>' +
           '</div></div>';
       });
@@ -616,7 +633,7 @@
     });
     el.views.wrong.querySelectorAll('[data-exam-retry]').forEach(function (b) {
       b.addEventListener('click', function () {
-        if (window.ExamUI) window.ExamUI.retryExam(b.dataset.examRetry);
+        if (window.ExamUI) window.ExamUI.retryExam(b.dataset.examRetry, b.dataset.examCourse || 'social-culture');
       });
     });
     el.views.wrong.querySelectorAll('[data-exam-remove]').forEach(function (b) {
@@ -658,7 +675,7 @@
       case 'quiz': renderQuiz(); break;
       case 'concepts': renderConcepts(); break;
       case 'wrong': renderWrong(); break;
-      case 'exam': if (window.ExamUI) window.ExamUI.renderPicker(el.views.exam); break;
+      case 'exam': if (window.ExamUI) window.ExamUI.renderPicker(el.views.exam, getSelectedSubject()); break;
       case 'examrun': if (window.ExamUI) window.ExamUI.renderRun(el.views.examrun); break;
       case 'examresult': if (window.ExamUI) window.ExamUI.renderResult(el.views.examresult); break;
       case 'game': if (window.GameUI) window.GameUI.render(el.views.game); break;

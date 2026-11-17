@@ -11,6 +11,7 @@
       symbol: '社',
       status: 'available',
       contentKey: 'social-culture',
+      assessmentKey: 'social-culture',
       educationStage: 'high-school',
       discipline: 'social-sciences',
       courseKind: 'elective',
@@ -38,6 +39,8 @@
         {
           id: 'official-mock',
           type: 'official-exam',
+          category: 'official',
+          assessmentTypes: ['official-exam'],
           label: '평가원 기출',
           durationSec: 1800,
           questionCount: 20,
@@ -49,6 +52,8 @@
         {
           id: 'predict-mock',
           type: 'self-produced-practice',
+          category: 'practice',
+          assessmentTypes: ['self-produced-practice', 'practice', 'quiz'],
           label: '수능 예상 모의고사',
           durationSec: 1800,
           questionCount: 20,
@@ -76,6 +81,13 @@
     return modules && modules[course.contentKey] ? modules[course.contentKey] : null;
   }
 
+  function getAssessmentData(courseId) {
+    var course = get(courseId);
+    if (!course || !course.assessmentKey) return null;
+    var modules = global.StudyCourseAssessments;
+    return modules && modules[course.assessmentKey] ? modules[course.assessmentKey] : null;
+  }
+
   function getAssessmentProfile(courseId, profileId) {
     var course = get(courseId);
     if (!course || !Array.isArray(course.assessmentProfiles)) return null;
@@ -84,14 +96,18 @@
     })[0] || null;
   }
 
-  function findAssessmentProfileForExam(exam) {
+  function findAssessmentProfileForExam(exam, courseId) {
     if (!exam) return null;
+    var requestedCourseId = courseId || exam.courseId || null;
     var match = null;
     courses.some(function (course) {
+      if (requestedCourseId && course.id !== requestedCourseId) return false;
       (course.assessmentProfiles || []).some(function (profile) {
         var prefixMatch = profile.idPrefix && String(exam.id || '').indexOf(profile.idPrefix) === 0;
         var kindMatch = Array.isArray(profile.sessionKinds) && profile.sessionKinds.indexOf(exam.kind) !== -1;
-        if (prefixMatch || kindMatch) {
+        var typeMatch = Array.isArray(profile.assessmentTypes) &&
+          profile.assessmentTypes.indexOf(exam.assessmentType) !== -1;
+        if (prefixMatch || kindMatch || typeMatch) {
           match = { course: course, profile: profile };
           return true;
         }
@@ -107,6 +123,7 @@
     get: get,
     listAvailable: listAvailable,
     getContent: getContent,
+    getAssessmentData: getAssessmentData,
     getAssessmentProfile: getAssessmentProfile,
     findAssessmentProfileForExam: findAssessmentProfileForExam
   };

@@ -943,3 +943,24 @@ p, li, figcaption { text-wrap: pretty; }
   .subject-pick-mark { flex-basis: 44px; width: 44px; height: 44px; border-radius: 13px; }
   .subject-pick-action { font-size: var(--text-xs); }
 }
+
+/* Generic assessment response controls */
+.exam-question-head { display:flex; align-items:center; gap:var(--space-2); margin-bottom:var(--space-3); flex-wrap:wrap; }
+.exam-question-number { font-weight:800; font-size:var(--text-lg); }
+.exam-question-points, .exam-question-type { color:var(--color-text-muted); font-size:var(--text-sm); }
+.exam-question-type { margin-left:auto; text-transform:capitalize; }
+.exam-stimulus-image { display:grid; gap:var(--space-3); }
+.exam-response-field { display:grid; gap:var(--space-2); margin-top:var(--space-4); font-weight:700; }
+.exam-response-input, .exam-response-textarea {
+  width:100%; min-width:0; border:1px solid var(--color-border); border-radius:var(--radius-md);
+  background:var(--color-surface); color:var(--color-text); padding:var(--space-3);
+  font:inherit; font-weight:400; line-height:1.6;
+}
+.exam-response-textarea { resize:vertical; min-height:8rem; }
+.exam-response-textarea.code, .exam-stimulus-code { font-family:ui-monospace,SFMono-Regular,Consolas,monospace; }
+.exam-response-hint { margin-top:var(--space-2); color:var(--color-text-muted); font-size:var(--text-sm); line-height:1.5; }
+.exam-response-audio { display:block; width:100%; margin:var(--space-3) 0; }
+.exam-stimulus-text, .exam-stimulus-table, .exam-stimulus-chart, .exam-stimulus-math, .exam-stimulus-html {
+  margin:var(--space-3) 0; line-height:1.7; overflow-wrap:anywhere;
+}
+.exam-stimulus-code { white-space:pre-wrap; overflow-x:auto; padding:var(--space-3); border-radius:var(--radius-md); background:var(--color-bg-subtle); }

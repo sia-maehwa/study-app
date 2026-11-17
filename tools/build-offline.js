@@ -15,8 +15,10 @@ function validateQuestionData() {
   vm.runInContext(read('courses/social-culture/content.js'), context, { filename: 'courses/social-culture/content.js' });
   vm.runInContext(read('js/course-registry.js'), context, { filename: 'js/course-registry.js' });
   vm.runInContext(read('js/data.js'), context, { filename: 'js/data.js' });
+  vm.runInContext(read('courses/social-culture/assessments.js'), context, { filename: 'courses/social-culture/assessments.js' });
   vm.runInContext(read('js/exams.js'), context, { filename: 'js/exams.js' });
   vm.runInContext(read('js/predict.js'), context, { filename: 'js/predict.js' });
+  vm.runInContext(read('js/assessment-engine.js'), context, { filename: 'js/assessment-engine.js' });
 
   const registry = context.window.StudyCourseRegistry;
   assert(registry && typeof registry.listAvailable === 'function', 'Course registry did not initialize.');
@@ -29,6 +31,9 @@ function validateQuestionData() {
   assert(courseContent && Array.isArray(courseContent.units) && Array.isArray(courseContent.questions) && courseContent.concepts, 'The Social & Culture content module did not resolve.');
   assert(courseContent.units.length === 5 && courseContent.questions.length === 62 && Object.keys(courseContent.concepts).length === 5, 'The separated Social & Culture module has unexpected content counts.');
   assert(courseContent.units === context.UNITS && courseContent.questions === context.QUESTIONS && courseContent.concepts === context.CONCEPTS, 'The compatibility adapter is not exposing the registered course data.');
+  const assessmentData = registry.getAssessmentData('social-culture');
+  assert(assessmentData && assessmentData.schemaVersion === 1, 'The Social & Culture assessment module did not resolve.');
+  assert(assessmentData.officialExams === context.EXAMS && assessmentData.practiceExams === context.PREDICT_EXAMS, 'The assessment compatibility adapters are not exposing the registered exam data.');
   assert(socialCulture.educationStage === 'high-school' && socialCulture.discipline === 'social-sciences', 'The Social & Culture course classification is invalid.');
   assert(socialCulture.content.unitCount === 5 && socialCulture.content.conceptQuestionCount === 62, 'Course content metadata does not match the existing question bank.');
   const officialProfile = registry.getAssessmentProfile('social-culture', 'official-mock');
@@ -37,6 +42,8 @@ function validateQuestionData() {
   const matchedPredict = registry.findAssessmentProfileForExam({ id: 'predict_mock_1', kind: 'predict' });
   assert(matchedOfficial && matchedOfficial.profile.id === 'official-mock', 'Official exam profile matching failed.');
   assert(matchedPredict && matchedPredict.profile.id === 'predict-mock', 'Practice exam profile matching failed.');
+  assert(registry.findAssessmentProfileForExam({ id: '2026_suneung', kind: 'suneung' }, 'unknown-course') === null,
+    'Assessment profiles must not match across course boundaries.');
   for (const profile of [officialProfile, predictProfile]) {
     assert(profile && profile.durationSec === 1800 && profile.questionCount === 20 && profile.choiceCount === 5 && profile.maxScore === 50, 'An assessment profile does not match the current mock exam format.');
   }
@@ -75,6 +82,54 @@ function validateQuestionData() {
     assert(Number.isInteger(q.a) && q.a >= 0 && q.a <= 4, 'Predict exam ' + exam.id + ' question ' + q.n + ' has an invalid answer.');
     assert(typeof q.e === 'string' && q.e.length > 0, 'Predict exam ' + exam.id + ' question ' + q.n + ' has no explanation.');
   }
+  const engine = context.window.AssessmentEngine;
+  assert(engine && engine.schemaVersion === 1, 'The shared assessment engine did not initialize.');
+  const normalizedOfficial = exams.map(exam => engine.normalizeAssessment({
+    ...exam,
+    questionImagePattern: 'assets/exams/{assessmentId}/q{number}.jpg'
+  }, { courseId: 'social-culture', assessmentType: 'official-exam' }));
+  assert(normalizedOfficial.length === 15, 'Expected 15 normalized official assessments.');
+  for (const exam of normalizedOfficial) {
+    assert(exam.questionCount === 20 && exam.items === exam.questions, 'Normalized assessment item count or item alias is invalid: ' + exam.id);
+    for (const q of exam.questions) {
+      assert(q.responseType === 'single-choice' && q.options.length === 5, 'Legacy image/OMR item was not normalized as five-choice single-choice: ' + exam.id + ' Q' + q.n);
+      assert(q.answerKey === q.ans && Number.isInteger(q.answerKey) && q.answerKey >= 0 && q.answerKey <= 4, 'Legacy official answer key changed during normalization: ' + exam.id + ' Q' + q.n);
+      assert(q.stimulus && q.stimulus.type === 'image' && q.stimulus.assets[0].indexOf('assets/exams/' + exam.id + '/') === 0, 'Official question image stimulus was not mapped: ' + exam.id + ' Q' + q.n);
+    }
+  }
+  const normalizedPractice = predict.map(exam => engine.normalizeAssessment(exam, {
+    courseId: 'social-culture',
+    assessmentType: 'self-produced-practice'
+  }));
+  assert(normalizedPractice.length === 3 && normalizedPractice.reduce((sum, exam) => sum + exam.questionCount, 0) === 60,
+    'Expected 60 normalized practice questions.');
+  for (const exam of normalizedPractice) for (const q of exam.questions) {
+    assert(q.responseType === 'single-choice' && q.options.length === 5 && q.answerKey === q.a && q.ans === q.a,
+      'Legacy practice multiple-choice item was not normalized compatibly: ' + exam.id + ' Q' + q.n);
+  }
+
+  for (const assessment of normalizedOfficial.concat(normalizedPractice)) {
+    const validation = engine.validateAssessment(assessment);
+    assert(validation.valid, 'Assessment validation failed for ' + assessment.id + ': ' + validation.errors.join(', '));
+  }
+
+  const single = engine.normalizeQuestion({ id: 'single', responseType: 'single-choice', prompt: 'Pick', options: ['A', 'B'], answerKey: 1, points: 2 });
+  const multi = engine.normalizeQuestion({ id: 'multi', responseType: 'multiple-select', prompt: 'Select', options: ['A', 'B', 'C'], answerKey: [0, 2], points: 3 });
+  const short = engine.normalizeQuestion({ id: 'short', responseType: 'short-answer', prompt: 'Name', answerKey: ['Seoul', '서울'], points: 2 });
+  const numeric = engine.normalizeQuestion({ id: 'numeric', responseType: 'numeric', prompt: 'Calculate', answerKey: { value: 3.14, tolerance: 0.01 }, points: 3 });
+  const essay = engine.normalizeQuestion({ id: 'essay', responseType: 'essay', prompt: 'Explain', rubric: 'Concept accuracy and reasoning', points: 5 });
+  const code = engine.normalizeQuestion({ id: 'code', responseType: 'code', prompt: 'Write code', testCases: [{ input: '1', expected: '1' }], points: 5 });
+  assert(engine.evaluateResponse(single, 1).status === 'correct', 'Single-choice automatic grading failed.');
+  assert(engine.evaluateResponse(multi, [2, 0]).status === 'correct', 'Multiple-select exact-set grading failed.');
+  assert(engine.evaluateResponse(short, ' 서울 ').status === 'correct', 'Short-answer normalization/grading failed.');
+  assert(engine.evaluateResponse(numeric, '3.145').status === 'correct', 'Numeric tolerance grading failed.');
+  assert(engine.evaluateResponse(essay, 'written response').status === 'pending-manual', 'Essay response must remain pending manual grading.');
+  assert(engine.evaluateResponse(code, 'console.log(1)').status === 'pending-manual', 'Code response must remain pending manual grading.');
+  assert(engine.evaluateResponse(multi, []).status === 'unanswered', 'An empty multi-select response must be unanswered.');
+  assert(engine.evaluateResponse(short, '   ').status === 'unanswered', 'A whitespace-only short answer must be unanswered.');
+  assert(engine.evaluateResponse(essay, 'written response', { earnedPoints: 4 }).earnedPoints === 4, 'Manual rubric score handling failed.');
+  assert(engine.validateQuestion(essay).valid && engine.validateQuestion(code).valid, 'Manual-review configuration validation failed.');
+  assert(engine.gradeAttempt([single, multi], [1, [0, 2]]).earnedPoints === 5, 'Generic attempt aggregation failed.');
   return { exams, conceptQuestions: base.questions.length, predictQuestions: predict.reduce((sum, exam) => sum + exam.questions.length, 0) };
 }
 
@@ -94,8 +149,9 @@ function validateRuntimeAssets(exams) {
   }
 
   const requiredScripts = [
-    'courses/social-culture/content.js', 'js/course-registry.js', 'js/data.js', 'js/exams.js', 'js/storage.js', 'js/predict.js',
-    'js/game.js', 'js/pen-tools.js', 'js/exam-app.js', 'js/app.js'
+    'courses/social-culture/content.js', 'courses/social-culture/assessments.js',
+    'js/course-registry.js', 'js/data.js', 'js/exams.js', 'js/storage.js', 'js/predict.js',
+    'js/assessment-engine.js', 'js/game.js', 'js/pen-tools.js', 'js/exam-app.js', 'js/app.js'
   ];
   for (const file of requiredScripts) {
     const absolute = path.join(root, file);
@@ -139,6 +195,16 @@ function main() {
   const examApp = read('js/exam-app.js');
   assert(!html.includes('data-pplx-inline-edit'), 'Unexpected editor-injected script in app-source.html.');
   assert(html.includes('id="view-subject-select"'), 'The first-visit subject selection view is missing.');
+  const assessmentLoadOrder = [
+    'src="courses/social-culture/assessments.js"',
+    'src="js/exams.js"',
+    'src="js/predict.js"',
+    'src="js/assessment-engine.js"',
+    'src="js/exam-app.js?v=20261117-assessment-engine-1"'
+  ].map(ref => html.indexOf(ref));
+  assert(assessmentLoadOrder.every(position => position >= 0) &&
+    assessmentLoadOrder.every((position, index) => index === 0 || position > assessmentLoadOrder[index - 1]),
+    'Course assessments and assessment engine scripts must load before the exam UI.');
   assert(html.includes('<link rel="manifest" href="manifest.webmanifest?v=20261116-name-2" />'), 'The PWA manifest link is missing.');
   assert(html.includes("navigator.serviceWorker.register('./service-worker.js'"), 'The PWA service worker registration is missing.');
 
@@ -147,11 +213,11 @@ function main() {
 
   assert(/<link\b(?=[^>]*\brel=["']stylesheet["'])[^>]*\bhref=["']css\/style\.css["'][^>]*>/i.test(html),
     'The source template must load the local css/style.css file.');
-  for (const file of ['courses/social-culture/content.js', 'js/course-registry.js', 'js/data.js', 'js/exams.js', 'js/storage.js', 'js/predict.js', 'js/game.js', 'js/pen-tools.js', 'js/exam-app.js', 'js/app.js']) {
+  for (const file of ['courses/social-culture/content.js', 'courses/social-culture/assessments.js', 'js/course-registry.js', 'js/data.js', 'js/exams.js', 'js/storage.js', 'js/predict.js', 'js/assessment-engine.js', 'js/game.js', 'js/pen-tools.js', 'js/exam-app.js', 'js/app.js']) {
     const scriptRef = file === 'js/pen-tools.js'
       ? 'src="js/pen-tools.js?v=20261117-ai-report-1"'
       : (file === 'js/exam-app.js'
-        ? 'src="js/exam-app.js?v=20261117-mock-wrong-1"'
+        ? 'src="js/exam-app.js?v=20261117-assessment-engine-1"'
         : 'src="' + file + '"');
     assert(html.includes(scriptRef), 'The source template is missing ' + file + '.');
   }
