@@ -873,7 +873,7 @@
     var manualQuestions = [];
     inc.forEach(function (index) {
       var question = e.questions[index];
-      if (question.responseType === 'essay' || question.responseType === 'code') {
+      if ((question.responseType === 'essay' || question.responseType === 'code') && hasResponse(state.answers[index])) {
         manualQuestions.push({ question: question, index: index });
       }
     });
