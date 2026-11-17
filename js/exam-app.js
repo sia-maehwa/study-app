@@ -8,6 +8,7 @@
   var HIST_KEY = 'socmul_exam_hist_v1';
   var EXAM_WRONG_KEY = 'study_exam_wrong_v1';
   var MANUAL_GRADES_KEY = 'study_manual_grades_v1';
+  var ATTEMPTS_KEY = 'study_exam_attempts_v1';
   var NODOYO_KEY = 'socmul_nodopyo_v1';
   var PEN_KEY = 'socmul_pen_v1';
   var PEN_COLOR_KEY = 'socmul_pen_color_v1';
@@ -153,6 +154,45 @@
     };
     window.Store.setJSON(MANUAL_GRADES_KEY, records);
   }
+  function loadAttempts() {
+    var records = window.Store ? window.Store.getJSON(ATTEMPTS_KEY, {}) : {};
+    return records && typeof records === 'object' && !Array.isArray(records) ? records : {};
+  }
+  function saveAttemptSnapshot() {
+    if (!window.Store || !state.attemptId || !state.examId) return;
+    var records = loadAttempts();
+    records[manualGradeStorageId()] = {
+      courseId: state.courseId,
+      examId: state.examId,
+      attemptId: state.attemptId,
+      answers: state.answers,
+      strokes: state.strokes,
+      manualGrades: state.manualGrades,
+      excludedDiagram: excludeDopyo(),
+      submittedAt: Date.now()
+    };
+    window.Store.setJSON(ATTEMPTS_KEY, records);
+  }
+  function openAttempt(record) {
+    if (!record || !record.attemptId) return;
+    var key = (record.courseId || 'social-culture') + ':' + record.id + ':' + record.attemptId;
+    var snapshot = loadAttempts()[key];
+    var exam = examById(record.id);
+    if (!snapshot || !exam) {
+      window.alert('이 응시 기록의 상세 답안이 저장되어 있지 않습니다.');
+      return;
+    }
+    state.courseId = record.courseId || 'social-culture';
+    state.examId = record.id;
+    state.attemptId = record.attemptId;
+    state.answers = Array.isArray(snapshot.answers) ? snapshot.answers.slice() : [];
+    state.strokes = snapshot.strokes && typeof snapshot.strokes === 'object' ? snapshot.strokes : {};
+    state.manualGrades = snapshot.manualGrades && typeof snapshot.manualGrades === 'object' ? snapshot.manualGrades : {};
+    state.submitted = true;
+    setExcludeDopyo(!!snapshot.excludedDiagram);
+    stopTimer();
+    if (window.AppUI) window.AppUI.show('examresult');
+  }
   function updateHistoryAfterManualGrade(exam, score) {
     loadHistory();
     var record = state.history.filter(function (item) {
@@ -167,6 +207,7 @@
     record.manualGrades = state.manualGrades;
     record.manualGradedAt = Date.now();
     saveHistory();
+    saveAttemptSnapshot();
   }
   function updateExamWrongNotes(exam) {
     var records = loadExamWrongNotes();
@@ -409,6 +450,31 @@
       html += '<div class="empty-state"><strong>등록된 기출·정규 평가가 없습니다</strong>연습 평가를 이용하거나 콘텐츠가 준비된 뒤 다시 확인해 주세요.</div>';
     }
 
+    var courseHistory = state.history.filter(function (record) {
+      return (record.courseId || 'social-culture') === state.courseId;
+    }).sort(function (a, b) { return b.at - a.at; });
+    html += '<section class="q-card attempt-history"><div class="section-head"><h2>응시 기록</h2><span>' +
+      courseHistory.length + '회</span></div>';
+    if (courseHistory.length) {
+      html += '<div class="attempt-history-list">';
+      courseHistory.forEach(function (record) {
+        var exam = examById(record.id);
+        var hasDetails = !!(record.attemptId && loadAttempts()[state.courseId + ':' + record.id + ':' + record.attemptId]);
+        html += '<div class="attempt-history-item"><div class="attempt-history-info"><b>' +
+          esc2(exam ? exam.label : record.id) + '</b><span>' +
+          new Date(record.at).toLocaleString() + ' · ' + record.score + '/' + record.max + '점 · ' +
+          (record.pendingManual ? '채점 대기 ' + record.pendingManual + '문항' : '채점 완료') +
+          '</span></div>' +
+          (hasDetails ? '<button type="button" class="btn btn-ghost" data-open-attempt="' + esc2(record.attemptId) +
+            '" data-open-exam="' + esc2(record.id) + '">상세 보기·채점 수정</button>' :
+            '<span class="exam-response-hint">점수 기록만 보존됨</span>') + '</div>';
+      });
+      html += '</div>';
+    } else {
+      html += '<div class="empty-state">아직 저장된 응시 기록이 없습니다.</div>';
+    }
+    html += '</section>';
+
     html += '<p class="exam-src-note">' + esc2((window.StudyCourseRegistry && window.StudyCourseRegistry.get(state.courseId) || {}).title || '과목') +
       ' 평가 데이터는 과목별 콘텐츠 모듈에서 불러옵니다.</p>';
     if (window.Store && !window.Store.persistent) {
@@ -418,6 +484,16 @@
     view.innerHTML = html;
     view.querySelectorAll('[data-start-exam]').forEach(function (b) {
       b.addEventListener('click', function () { startExam(b.dataset.startExam); });
+    });
+    view.querySelectorAll('[data-open-attempt]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var record = state.history.filter(function (item) {
+          return item.attemptId === button.getAttribute('data-open-attempt') &&
+            item.id === button.getAttribute('data-open-exam') &&
+            (item.courseId || 'social-culture') === state.courseId;
+        })[0];
+        openAttempt(record);
+      });
     });
     var dt = view.querySelector('[data-dopyo-toggle]');
     if (dt) dt.addEventListener('click', function () {
@@ -758,6 +834,7 @@
     loadHistory();
     state.history.push({ courseId: state.courseId, id: state.examId, attemptId: state.attemptId, score: r.score, max: r.max, correct: r.correct, total: r.total, pendingManual: r.pendingManual || 0, manualGrades: {}, at: Date.now() });
     saveHistory();
+    saveAttemptSnapshot();
     if (window.AppUI) window.AppUI.show('examresult');
   }
 
@@ -870,6 +947,7 @@
       '<button class="btn btn-primary" data-exam-again type="button">같은 시험 다시 풀기</button>' +
       '<button class="btn btn-ghost" data-export-ai type="button">AI 분석 보고서 다운로드</button>' +
       '<button class="btn btn-ghost" data-exam-list type="button">시험지 목록으로</button>' +
+      '<button class="btn btn-ghost" data-attempt-history type="button">응시 기록</button>' +
       '</div></div>';
 
     /* 서술형·코드 문항 수동 채점 */
@@ -1008,6 +1086,9 @@
       downloadAiReviewReport(event.currentTarget);
     });
     view.querySelector('[data-exam-list]').addEventListener('click', function () {
+      if (window.AppUI) window.AppUI.show('exam');
+    });
+    view.querySelector('[data-attempt-history]').addEventListener('click', function () {
       if (window.AppUI) window.AppUI.show('exam');
     });
   }
