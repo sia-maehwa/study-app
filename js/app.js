@@ -336,7 +336,7 @@
       color: state.penColor,
       getStrokes: function () { return strokes; },
       save: function () {
-        var latest = readJSON(QUIZ_PEN_KEY, {});
+        var latest = readJSON(courseStorageKey(QUIZ_PEN_KEY), {});
         latest[questionKey] = strokes;
         writeJSON(courseStorageKey(QUIZ_PEN_KEY), latest);
       },
