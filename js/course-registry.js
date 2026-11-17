@@ -63,6 +63,21 @@
           idPrefix: 'predict_'
         }
       ]
+    },
+    {
+      id: 'english',
+      title: '영어',
+      symbol: 'EN',
+      status: 'planned',
+      educationStage: 'high-school',
+      discipline: 'languages',
+      courseKind: 'core',
+      curriculum: {
+        name: '고등학교 영어 · 콘텐츠 준비 중',
+        version: null
+      },
+      description: '영어 지문·어휘·독해 학습 자료를 준비 중입니다.',
+      detail: '지문·문항·정답·해설 미등록'
     }
   ];
 
@@ -72,6 +87,10 @@
 
   function listAvailable() {
     return courses.filter(function (course) { return course.status === 'available'; }).slice();
+  }
+
+  function listPlanned() {
+    return courses.filter(function (course) { return course.status === 'planned'; }).slice();
   }
 
   function getContent(courseId) {
@@ -122,6 +141,7 @@
     version: 1,
     get: get,
     listAvailable: listAvailable,
+    listPlanned: listPlanned,
     getContent: getContent,
     getAssessmentData: getAssessmentData,
     getAssessmentProfile: getAssessmentProfile,
