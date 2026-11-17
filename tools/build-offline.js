@@ -111,17 +111,27 @@ function validateQuestionData() {
     normalizedEnglish.questions.filter(q => q.section === 'reading').length === 28,
     'English assessment must have 17 listening and 28 reading questions.');
   const expectedEnglishAnswers = [2,1,0,4,0,3,0,4,3,3,0,1,1,2,2,0,4,1,0,1,1,0,2,1,3,2,3,3,1,4,0,4,3,2,3,3,4,4,2,2,1,4,4,2,4];
-  assert(normalizedEnglish.questions.every((q, index) =>
-    q.answerKey === expectedEnglishAnswers[index] && q.options.length === 5),
-    'English answer key or five-choice option structure differs from the verified odd-form key.');
+  const englishPageForQuestion = number => number <= 12 ? 1 :
+    (number <= 20 ? 2 : (number <= 24 ? 3 : (number <= 28 ? 4 :
+      (number <= 32 ? 5 : (number <= 36 ? 6 : (number <= 40 ? 7 : 8))))));
+  assert(normalizedEnglish.questions.every((q, index) => {
+    const page = String(englishPageForQuestion(index + 1)).padStart(2, '0');
+    const asset = q.stimulus && q.stimulus.type === 'image' && q.stimulus.assets && q.stimulus.assets[0];
+    return q.answerKey === expectedEnglishAnswers[index] && q.options.length === 5 &&
+      asset && asset.url === 'assets/exams/2026_suneung_english_odd/pages/page-' + page + '.jpg' &&
+      asset.openOriginal === true;
+  }), 'English answer key, five-choice structure, or original page-image mapping is invalid.');
   assert(englishProfile && englishProfile.durationSec === 4200 && englishProfile.maxScore === 100 &&
     englishProfile.gradeScaleType === 'absolute' && englishProfile.gradeCuts['1'] === 90 &&
     englishProfile.gradeCuts['8'] === 20,
     'English CSAT assessment profile or absolute grade scale is invalid.');
   assert(englishExam.sourceUrl === 'https://cdn.kice.re.kr/suneung-26/suneung-26_3.pdf' &&
     englishExam.answerKeyUrl === 'https://cdn.kice.re.kr/suneung-26/suneung-26_3a.pdf' &&
-    englishExam.sourceNote.includes('듣기 1~17번'),
-    'English assessment must retain official source links and the external listening-audio notice.');
+    englishExam.listeningAudioUrl === 'assets/audio/2026_suneung_english_listening.mp3' &&
+    englishExam.audioSourceUrl === 'https://wdown.ebsi.co.kr/W61001/01exam/20251113/go3/eng_1_mp3_83X8155G.mp3' &&
+    englishExam.questionFormat === 'embedded-official-page-answer-sheet' &&
+    englishExam.sourceNote.includes('앱에 포함'),
+    'English assessment must retain official source links, embedded pages, and the local listening asset.');
   const normalizedOfficial = exams.map(exam => engine.normalizeAssessment({
     ...exam,
     questionImagePattern: 'assets/exams/{assessmentId}/q{number}.jpg'
@@ -269,7 +279,45 @@ function validateRuntimeAssets(exams) {
     count += 1;
   }
   assert(count === 300, 'Expected 300 exam images; found ' + count + '.');
-  return { count, bytes };
+
+  let englishPageBytes = 0;
+  let englishPageCount = 0;
+  for (let page = 1; page <= 8; page += 1) {
+    const filename = 'page-' + String(page).padStart(2, '0') + '.jpg';
+    const relative = path.join('assets', 'exams', '2026_suneung_english_odd', 'pages', filename);
+    const absolute = path.join(root, relative);
+    assert(fs.existsSync(absolute), 'Missing embedded English source page: ' + relative);
+    const stat = fs.statSync(absolute);
+    assert(stat.size > 10000, 'English source page image is too small: ' + relative);
+    const fd = fs.openSync(absolute, 'r');
+    const head = Buffer.alloc(2);
+    const tail = Buffer.alloc(2);
+    try {
+      fs.readSync(fd, head, 0, 2, 0);
+      fs.readSync(fd, tail, 0, 2, stat.size - 2);
+    } finally {
+      fs.closeSync(fd);
+    }
+    assert(head[0] === 0xff && head[1] === 0xd8 && tail[0] === 0xff && tail[1] === 0xd9,
+      'English source page is not a complete JPEG: ' + relative);
+    englishPageBytes += stat.size;
+    englishPageCount += 1;
+  }
+  const englishAudioPath = path.join(root, 'assets', 'audio', '2026_suneung_english_listening.mp3');
+  assert(fs.existsSync(englishAudioPath), 'Missing embedded English listening MP3.');
+  const englishAudioStat = fs.statSync(englishAudioPath);
+  assert(englishAudioStat.size > 500000, 'English listening MP3 is unexpectedly small.');
+  const audioFd = fs.openSync(englishAudioPath, 'r');
+  const audioHead = Buffer.alloc(3);
+  try {
+    fs.readSync(audioFd, audioHead, 0, 3, 0);
+  } finally {
+    fs.closeSync(audioFd);
+  }
+  assert(audioHead.toString('ascii') === 'ID3' ||
+    (audioHead[0] === 0xff && (audioHead[1] & 0xe0) === 0xe0),
+    'English listening asset does not have a recognized MP3 header.');
+  return { count, bytes, englishPageCount, englishPageBytes, englishAudioBytes: englishAudioStat.size };
 }
 
 function main() {
@@ -347,15 +395,18 @@ function main() {
   assert(appSource.includes('activeCourse.assessmentOnly') && appSource.includes("view = 'exam'"),
     'Assessment-only courses must route away from concept and game screens.');
   assert(examApp.includes('e.sourceUrl') && examApp.includes('문제지 PDF') &&
-    examApp.includes("q.section === 'listening'"),
-    'English exam runner must expose the official PDF and listening/reading section labels.');
-  assert(styleSource.includes('.exam-source-banner') && styleSource.includes('.exam-source-inline'),
-    'Official PDF links must have dedicated readable styling.');
+    examApp.includes('data-listening-audio') && examApp.includes('listeningAudioTime') &&
+    examApp.includes('resumePlayback') && examApp.includes('asset.openOriginal'),
+    'English exam runner must show embedded pages and preserve continuous listening playback.');
+  assert(styleSource.includes('.exam-qimg-link') && styleSource.includes('.exam-listening-audio'),
+    'Embedded English page images and listening player must have dedicated styling.');
 
   assert(fs.existsSync(path.join(root, 'service-worker.js')) &&
-    read('service-worker.js').includes('social-culture-study-shell-v15') &&
-    read('service-worker.js').includes('./courses/english/assessments.js'),
-    'The service worker cache must include the English assessment module.');
+    read('service-worker.js').includes('social-culture-study-shell-v16') &&
+    read('service-worker.js').includes('./courses/english/assessments.js') &&
+    read('service-worker.js').includes('./assets/audio/2026_suneung_english_listening.mp3') &&
+    read('service-worker.js').includes('./assets/exams/2026_suneung_english_odd/pages/page-08.jpg'),
+    'The service worker cache must include all English source pages and the listening MP3.');
   assert(!/https?:\/\//i.test(html.replace(/<link rel="icon" href="data:image\/svg\+xml,[^"]*"/, '')),
     'The runtime template must not depend on an external URL.');
 
@@ -367,8 +418,11 @@ function main() {
   console.log('Built lightweight index.html: ' + (Buffer.byteLength(html, 'utf8') / 1024).toFixed(1) + ' KiB.');
   console.log('Validated 5 units, ' + dataCheck.conceptQuestions + ' concept questions, ' +
     dataCheck.exams.length + ' official sessions / 300 answer records, and ' + dataCheck.predictQuestions + ' self-made questions.');
-  console.log('Validated ' + assetCheck.count + ' JPEG files (' + (assetCheck.bytes / 1024 / 1024).toFixed(2) + ' MiB total) without embedding them into HTML.');
-  console.log('Runtime uses local relative CSS/JS/image files; pen drawing and storage remain device-local.');
+  console.log('Validated ' + assetCheck.count + ' Social & Culture JPEG files (' + (assetCheck.bytes / 1024 / 1024).toFixed(2) + ' MiB).');
+  console.log('Validated ' + assetCheck.englishPageCount + ' English source page images (' +
+    (assetCheck.englishPageBytes / 1024 / 1024).toFixed(2) + ' MiB) and listening MP3 (' +
+    (assetCheck.englishAudioBytes / 1024 / 1024).toFixed(2) + ' MiB).');
+  console.log('Runtime uses local relative CSS/JS/image/audio files; pen drawing and storage remain device-local.');
 }
 
 main();
