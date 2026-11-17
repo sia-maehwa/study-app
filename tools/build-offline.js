@@ -106,6 +106,11 @@ function validateQuestionData() {
       'Legacy practice multiple-choice item was not normalized compatibly: ' + exam.id + ' Q' + q.n);
   }
 
+  for (const assessment of normalizedOfficial.concat(normalizedPractice)) {
+    const validation = engine.validateAssessment(assessment);
+    assert(validation.valid, 'Assessment validation failed for ' + assessment.id + ': ' + validation.errors.join(', '));
+  }
+
   const single = engine.normalizeQuestion({ id: 'single', responseType: 'single-choice', prompt: 'Pick', options: ['A', 'B'], answerKey: 1, points: 2 });
   const multi = engine.normalizeQuestion({ id: 'multi', responseType: 'multiple-select', prompt: 'Select', options: ['A', 'B', 'C'], answerKey: [0, 2], points: 3 });
   const short = engine.normalizeQuestion({ id: 'short', responseType: 'short-answer', prompt: 'Name', answerKey: ['Seoul', '서울'], points: 2 });
