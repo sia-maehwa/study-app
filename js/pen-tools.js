@@ -199,6 +199,10 @@
        손가락(touch)에는 이 클래스를 적용하지 않아 기존 스크롤 동작을 보존합니다. */
     function onPointerOver(event) {
       if (event.pointerType !== 'pen' || !isInsideRoot(event.target)) return;
+      if (isControlTarget(event.target)) {
+        root.classList.remove('pen-hover-input');
+        return;
+      }
       root.classList.add('pen-hover-input');
     }
     function onPointerOut(event) {
@@ -246,9 +250,9 @@
     function onPointerMove(event) {
       /* hover 이동 이벤트도 처리해 pointerover가 누락되는 브라우저를 보완합니다. */
       if (event.pointerType === 'pen' && !activeStroke) {
-        if (event.buttons === 0 && isInsideRoot(event.target)) {
+        if (event.buttons === 0 && isInsideRoot(event.target) && !isControlTarget(event.target)) {
           root.classList.add('pen-hover-input');
-        } else if (!isInsideRoot(event.target) && !isInsideRoot(event.relatedTarget)) {
+        } else if (!isInsideRoot(event.target) || isControlTarget(event.target)) {
           root.classList.remove('pen-hover-input');
         }
       }

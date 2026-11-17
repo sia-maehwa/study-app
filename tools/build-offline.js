@@ -339,6 +339,7 @@ function main() {
     styleSource.includes('.view.pen-surface-root.pen-hover-input'),
     'Stylus hover must apply touch-action locking before contact and release it on exit.');
   assert(conceptApp.includes('data-penclear') && examApp.includes('data-penclear') &&
+    conceptApp.includes('필기 전체 삭제') && examApp.includes('필기 전체 삭제') &&
     penTools.includes("querySelector('[data-penclear]')"),
     'Per-question clear handwriting controls must render and bind in both study and exam views.');
   assert(!html.includes('data-pplx-inline-edit'), 'Unexpected editor-injected script in app-source.html.');
