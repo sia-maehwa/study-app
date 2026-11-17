@@ -125,7 +125,8 @@ function validateQuestionData() {
     englishProfile.gradeScaleType === 'absolute' && englishProfile.gradeCuts['1'] === 90 &&
     englishProfile.gradeCuts['8'] === 20,
     'English CSAT assessment profile or absolute grade scale is invalid.');
-  assert(englishExam.sourceUrl === 'https://cdn.kice.re.kr/suneung-26/suneung-26_3.pdf' &&
+  assert(englishExam.sourceUrl === 'https://files-scs.pstatic.net/2025/11/18/jNffYLbN3u/2026%20%EC%88%98%EB%8A%A5%20%EC%98%81%EC%96%B4%20%EB%AC%B8%EC%A0%9C.pdf' &&
+    englishExam.officialSourceUrl === 'https://cdn.kice.re.kr/suneung-26/suneung-26_3.pdf' &&
     englishExam.answerKeyUrl === 'https://cdn.kice.re.kr/suneung-26/suneung-26_3a.pdf' &&
     englishExam.listeningAudioUrl === 'assets/audio/2026_suneung_english_listening.mp3' &&
     englishExam.audioSourceUrl === 'https://wdown.ebsi.co.kr/W61001/01exam/20251113/go3/eng_1_mp3_83X8155G.mp3' &&
