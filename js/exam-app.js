@@ -72,7 +72,7 @@
   }
   function getAssessmentProfile(exam) {
     if (!window.StudyCourseRegistry || !exam) return null;
-    var match = window.StudyCourseRegistry.findAssessmentProfileForExam(exam);
+    var match = window.StudyCourseRegistry.findAssessmentProfileForExam(exam, state.courseId);
     return match ? match.profile : null;
   }
   function examDurationSec(exam) {
@@ -409,7 +409,7 @@
     }
 
     function assessmentProfileLabel(exam) {
-      var match = window.StudyCourseRegistry && window.StudyCourseRegistry.findAssessmentProfileForExam(exam);
+      var match = window.StudyCourseRegistry && window.StudyCourseRegistry.findAssessmentProfileForExam(exam, state.courseId);
       return match && match.profile ? match.profile.label : '';
     }
 
