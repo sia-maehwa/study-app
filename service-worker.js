@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'social-culture-study-shell-v15';
+const CACHE_NAME = 'social-culture-study-shell-v16';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -12,6 +12,15 @@ const CORE_ASSETS = [
   './courses/social-culture/content.js',
   './courses/social-culture/assessments.js',
   './courses/english/assessments.js',
+  './assets/exams/2026_suneung_english_odd/pages/page-01.jpg',
+  './assets/exams/2026_suneung_english_odd/pages/page-02.jpg',
+  './assets/exams/2026_suneung_english_odd/pages/page-03.jpg',
+  './assets/exams/2026_suneung_english_odd/pages/page-04.jpg',
+  './assets/exams/2026_suneung_english_odd/pages/page-05.jpg',
+  './assets/exams/2026_suneung_english_odd/pages/page-06.jpg',
+  './assets/exams/2026_suneung_english_odd/pages/page-07.jpg',
+  './assets/exams/2026_suneung_english_odd/pages/page-08.jpg',
+  './assets/audio/2026_suneung_english_listening.mp3',
   './js/data.js',
   './js/course-registry.js',
   './js/exams.js',
