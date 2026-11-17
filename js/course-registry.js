@@ -83,7 +83,24 @@
       content: {
         officialAssessmentSessions: 1,
         officialAssessmentQuestions: 45
-      }
+      },
+      assessmentProfiles: [
+        {
+          id: 'official-suneung',
+          type: 'official-exam',
+          category: 'official',
+          assessmentTypes: ['official-exam'],
+          label: '평가원 기출',
+          durationSec: 4200,
+          questionCount: 45,
+          choiceCount: 5,
+          pointValues: [2, 3],
+          maxScore: 100,
+          sessionKinds: ['suneung'],
+          gradeScaleType: 'absolute',
+          gradeCuts: { '1': 90, '2': 80, '3': 70, '4': 60, '5': 50, '6': 40, '7': 30, '8': 20 }
+        }
+      ]
     }
   ];
 
