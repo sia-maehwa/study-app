@@ -587,8 +587,8 @@
         var responseType = record.responseType || 'single-choice';
         var selectedValue = record.response !== undefined ? record.response : record.selectedIndex;
         var correctValue = record.correctAnswer !== undefined ? record.correctAnswer : record.correctIndex;
-        var selected = formatExamWrongValue(selectedValue, responseType);
-        var correct = formatExamWrongValue(correctValue, responseType);
+        var selected = record.responseDisplay || formatExamWrongValue(selectedValue, responseType);
+        var correct = record.correctDisplay || formatExamWrongValue(correctValue, responseType);
         var when = record.lastAttemptAt ? new Date(record.lastAttemptAt).toLocaleDateString('ko-KR') : '';
         html += '<div class="wrong-item exam-wrong-item">' +
           '<div class="wrong-item-head">' +
