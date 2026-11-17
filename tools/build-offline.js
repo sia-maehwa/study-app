@@ -336,7 +336,7 @@ function main() {
     'src="js/exams.js"',
     'src="js/predict.js"',
     'src="js/assessment-engine.js"',
-    'src="js/exam-app.js?v=20261117-attempt-history-1"',
+    'src="js/exam-app.js?v=20261117-english-image-pen-fix-1"',
     'src="js/analytics.js?v=20261117-learning-analytics-1"',
     'src="js/app.js"'
   ].map(ref => html.indexOf(ref));
@@ -355,7 +355,7 @@ function main() {
     const scriptRef = file === 'js/pen-tools.js'
       ? 'src="js/pen-tools.js?v=20261117-ai-report-1"'
       : (file === 'js/exam-app.js'
-        ? 'src="js/exam-app.js?v=20261117-attempt-history-1"'
+        ? 'src="js/exam-app.js?v=20261117-english-image-pen-fix-1"'
         : (file === 'js/analytics.js'
           ? 'src="js/analytics.js?v=20261117-learning-analytics-1"'
           : 'src="' + file + '"'));
@@ -397,17 +397,23 @@ function main() {
     'Assessment-only courses must route away from concept and game screens.');
   assert(examApp.includes('e.sourceUrl') && examApp.includes('문제지 PDF') &&
     examApp.includes('data-listening-audio') && examApp.includes('listeningAudioTime') &&
-    examApp.includes('resumePlayback') && examApp.includes('asset.openOriginal'),
-    'English exam runner must show embedded pages and preserve continuous listening playback.');
-  assert(styleSource.includes('.exam-qimg-link') && styleSource.includes('.exam-listening-audio'),
-    'Embedded English page images and listening player must have dedicated styling.');
+    examApp.includes('resumePlayback') && examApp.includes('asset.openOriginal') &&
+    examApp.includes('<div class="exam-qimg-link">') &&
+    !examApp.includes('return \'<a class="exam-qimg-link"'),
+    'English source images must remain stylus-writable and listening playback must be continuous.');
+  assert(styleSource.includes('.exam-qimg-link') && styleSource.includes('.exam-image-zoom-hint') &&
+    styleSource.includes('.exam-listening-audio'),
+    'Embedded English page images, separate original link, and listening player must have dedicated styling.');
 
   assert(fs.existsSync(path.join(root, 'service-worker.js')) &&
-    read('service-worker.js').includes('social-culture-study-shell-v16') &&
+    read('service-worker.js').includes('social-culture-study-shell-v18') &&
     read('service-worker.js').includes('./courses/english/assessments.js') &&
+    read('service-worker.js').includes('const OPTIONAL_ASSETS') &&
     read('service-worker.js').includes('./assets/audio/2026_suneung_english_listening.mp3') &&
+    read('service-worker.js').includes('cachedRangeResponse') &&
+    read('service-worker.js').includes("request.headers.has('range')") &&
     read('service-worker.js').includes('./assets/exams/2026_suneung_english_odd/pages/page-08.jpg'),
-    'The service worker cache must include all English source pages and the listening MP3.');
+    'The service worker must safely cache optional offline audio and serve byte ranges from the full cached file.');
   assert(!/https?:\/\//i.test(html.replace(/<link rel="icon" href="data:image\/svg\+xml,[^"]*"/, '')),
     'The runtime template must not depend on an external URL.');
 

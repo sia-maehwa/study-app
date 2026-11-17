@@ -634,9 +634,9 @@
             var image = '<img class="exam-qimg" ' + (assetIndex === 0 ? 'id="examQImg" ' : '') +
               'src="' + esc2(url) + '" alt="' + esc2(alt) + '" loading="eager" />';
             if (typeof asset === 'object' && asset.openOriginal) {
-              return '<a class="exam-qimg-link" href="' + esc2(url) +
-                '" target="_blank" rel="noopener noreferrer" aria-label="원문 페이지 이미지를 원본 크기로 열기">' +
-                image + '<span class="exam-image-zoom-hint">이미지를 누르면 원본 크기로 열립니다</span></a>';
+              return '<div class="exam-qimg-link">' + image +
+                '<a class="exam-image-zoom-hint" href="' + esc2(url) +
+                '" target="_blank" rel="noopener noreferrer" aria-label="원문 페이지 이미지를 원본 크기로 열기">원문 이미지 원본 크기로 보기 ↗</a></div>';
             }
             return image;
           }).join('')
