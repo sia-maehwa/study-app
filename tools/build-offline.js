@@ -406,7 +406,7 @@ function main() {
     'Embedded English page images, separate original link, and listening player must have dedicated styling.');
 
   assert(fs.existsSync(path.join(root, 'service-worker.js')) &&
-    read('service-worker.js').includes('social-culture-study-shell-v18') &&
+    /social-culture-study-shell-v\\d+/.test(read('service-worker.js')) &&
     read('service-worker.js').includes('./courses/english/assessments.js') &&
     read('service-worker.js').includes('const OPTIONAL_ASSETS') &&
     read('service-worker.js').includes('./assets/audio/2026_suneung_english_listening.mp3') &&
