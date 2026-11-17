@@ -5,7 +5,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PAGE_DIR="$ROOT/assets/exams/2026_suneung_english_odd/pages"
 AUDIO_DIR="$ROOT/assets/audio"
 AUDIO_FILE="$AUDIO_DIR/2026_suneung_english_listening.mp3"
-KICE_PDF="https://cdn.kice.re.kr/suneung-26/suneung-26_3.pdf"
+KICE_PDF_SOURCE="https://cdn.kice.re.kr/suneung-26/suneung-26_3.pdf"
+KICE_PDF_MIRROR="https://files-scs.pstatic.net/2025/11/18/jNffYLbN3u/2026%20%EC%88%98%EB%8A%A5%20%EC%98%81%EC%96%B4%20%EB%AC%B8%EC%A0%9C.pdf"
 EBSI_AUDIO="https://wdown.ebsi.co.kr/W61001/01exam/20251113/go3/eng_1_mp3_83X8155G.mp3"
 
 mkdir -p "$PAGE_DIR" "$AUDIO_DIR"
@@ -25,10 +26,11 @@ fi
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-echo "Downloading the official KICE 2026 CSAT English question paper..."
+echo "Downloading the 2026 CSAT English odd-form paper (KICE original, verified mirror)..."
 curl --fail --location --retry 3 --retry-delay 2 \
+  --referer "https://www.kice.re.kr/" \
   --user-agent "Mozilla/5.0 (compatible; StudyAppAssetBuilder/1.0)" \
-  "$KICE_PDF" -o "$TMP/english-odd-even.pdf"
+  "$KICE_PDF_MIRROR" -o "$TMP/english-odd.pdf"
 
 command -v pdfinfo >/dev/null 2>&1 || {
   echo "pdfinfo is required. Install poppler-utils before running this script." >&2
@@ -39,15 +41,15 @@ command -v pdftoppm >/dev/null 2>&1 || {
   exit 1
 }
 
-page_count="$(pdfinfo "$TMP/english-odd-even.pdf" | awk '/^Pages:/ {print $2}')"
-if [[ -z "$page_count" || "$page_count" -lt 8 ]]; then
-  echo "Unexpected page count in KICE English PDF: ${page_count:-unknown}" >&2
+page_count="$(pdfinfo "$TMP/english-odd.pdf" | awk '/^Pages:/ {print $2}')"
+if [[ -z "$page_count" || "$page_count" -ne 8 ]]; then
+  echo "Unexpected odd-form page count in KICE English PDF: ${page_count:-unknown}" >&2
   exit 1
 fi
 
-echo "Rendering the eight odd-form pages (1–8) as local JPEG assets..."
+echo "Rendering all eight pages of the verified KICE odd-form paper as local JPEG assets..."
 pdftoppm -f 1 -l 8 -jpeg -scale-to-x 1600 -scale-to-y -1 \
-  -jpegopt quality=86 "$TMP/english-odd-even.pdf" "$TMP/english-page"
+  -jpegopt quality=86 "$TMP/english-odd.pdf" "$TMP/english-page"
 
 for number in $(seq 1 8); do
   n="$(printf '%02d' "$number")"
