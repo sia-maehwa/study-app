@@ -11,6 +11,16 @@ on:
       - 'assets/**'
       - 'tools/build-offline.js'
       - '.github/workflows/build-local-zip.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app-source.html'
+      - 'courses/**'
+      - 'css/**'
+      - 'js/**'
+      - 'assets/**'
+      - 'tools/build-offline.js'
+      - '.github/workflows/build-local-zip.yml'
   workflow_dispatch:
 
 permissions:
@@ -41,6 +51,7 @@ jobs:
         run: node tools/build-offline.js
 
       - name: Commit updated local entrypoint
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

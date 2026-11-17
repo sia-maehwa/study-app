@@ -7,6 +7,7 @@
   var CHOICE_LABELS = ['①', '②', '③', '④', '⑤'];
   var HIST_KEY = 'socmul_exam_hist_v1';
   var EXAM_WRONG_KEY = 'study_exam_wrong_v1';
+  var MANUAL_GRADES_KEY = 'study_manual_grades_v1';
   var NODOYO_KEY = 'socmul_nodopyo_v1';
   var PEN_KEY = 'socmul_pen_v1';
   var PEN_COLOR_KEY = 'socmul_pen_color_v1';
@@ -20,6 +21,8 @@
     deadline: 0,
     timerId: null,
     submitted: false,
+    attemptId: null,
+    manualGrades: {},
     history: [],      /* { id, score, max, correct, total, at } */
     penMode: 'pen',   /* pen | eraser | off */
     penColor: (window.Store && window.Store.get(PEN_COLOR_KEY)) || DEFAULT_PEN_COLOR,
@@ -134,6 +137,37 @@
   function saveExamWrongNotes(records) {
     if (window.Store) window.Store.setJSON(EXAM_WRONG_KEY, records);
   }
+  function manualGradeStorageId() {
+    return state.courseId + ':' + state.examId + ':' + state.attemptId;
+  }
+  function saveManualGrades() {
+    if (!window.Store || !state.attemptId) return;
+    var records = window.Store.getJSON(MANUAL_GRADES_KEY, {});
+    if (!records || typeof records !== 'object' || Array.isArray(records)) records = {};
+    records[manualGradeStorageId()] = {
+      courseId: state.courseId,
+      examId: state.examId,
+      attemptId: state.attemptId,
+      grades: state.manualGrades,
+      updatedAt: Date.now()
+    };
+    window.Store.setJSON(MANUAL_GRADES_KEY, records);
+  }
+  function updateHistoryAfterManualGrade(exam, score) {
+    loadHistory();
+    var record = state.history.filter(function (item) {
+      return item.attemptId === state.attemptId && item.id === state.examId &&
+        (item.courseId || 'social-culture') === state.courseId;
+    })[0];
+    if (!record) return;
+    record.score = score.score;
+    record.max = score.max;
+    record.correct = score.correct;
+    record.pendingManual = score.pendingManual;
+    record.manualGrades = state.manualGrades;
+    record.manualGradedAt = Date.now();
+    saveHistory();
+  }
   function updateExamWrongNotes(exam) {
     var records = loadExamWrongNotes();
     var now = Date.now();
@@ -144,9 +178,11 @@
         ? exam.id + ':' + question.n
         : state.courseId + ':' + exam.id + ':' + question.n;
       var evaluation = window.AssessmentEngine
-        ? window.AssessmentEngine.evaluateResponse(question, selected)
+        ? window.AssessmentEngine.evaluateResponse(question, selected, state.manualGrades[index])
         : { status: selected === question.ans ? 'correct' : 'incorrect' };
-      if (evaluation.status === 'correct' || evaluation.status === 'pending-manual') {
+      if (evaluation.status === 'correct' ||
+          (evaluation.status === 'graded-manual' && evaluation.isCorrect === true) ||
+          evaluation.status === 'pending-manual') {
         delete records[key];
         return;
       }
@@ -217,10 +253,11 @@
       var mine = state.answers[i];
       if (!hasResponse(mine)) { blank++; return; }
       var evaluation = window.AssessmentEngine
-        ? window.AssessmentEngine.evaluateResponse(q, mine)
+        ? window.AssessmentEngine.evaluateResponse(q, mine, state.manualGrades[i])
         : { status: mine === q.ans ? 'correct' : 'incorrect', earnedPoints: mine === q.ans ? (q.pts || 2) : 0 };
       if (evaluation.status === 'pending-manual') { pendingManual++; return; }
-      if (evaluation.status === 'correct') { score += evaluation.earnedPoints; correct++; }
+      if (evaluation.earnedPoints !== null && evaluation.earnedPoints !== undefined) score += evaluation.earnedPoints;
+      if (evaluation.status === 'correct' || (evaluation.status === 'graded-manual' && evaluation.isCorrect === true)) correct++;
     });
     return { score: score, max: maxScore(e), correct: correct, total: inc.length, blank: blank, pendingManual: pendingManual };
   }
@@ -398,6 +435,8 @@
     state.answers = new Array(e.questions.length).fill(null);
     state.idx = 0;
     state.submitted = false;
+    state.attemptId = null;
+    state.manualGrades = {};
     state.penMode = 'pen';
     loadPen(examId);
     /* 첫 (포함된) 문항으로 이동 */
@@ -711,12 +750,13 @@
     if (auto) window.alert('제한 시간이 종료되어 자동 제출되었습니다.');
     state.submitted = true;
     stopTimer();
+    state.attemptId = String(Date.now());
     updateExamWrongNotes(e);
     var r = scoreExam(e);
     /* 학습 게임(지식의 탑) 성장 연동 */
     if (window.GameUI && !r.pendingManual) window.GameUI.reportExam({ score: r.score, max: r.max, correct: r.correct, label: e.label });
     loadHistory();
-    state.history.push({ courseId: state.courseId, id: state.examId, score: r.score, max: r.max, correct: r.correct, total: r.total, pendingManual: r.pendingManual || 0, at: Date.now() });
+    state.history.push({ courseId: state.courseId, id: state.examId, attemptId: state.attemptId, score: r.score, max: r.max, correct: r.correct, total: r.total, pendingManual: r.pendingManual || 0, manualGrades: {}, at: Date.now() });
     saveHistory();
     if (window.AppUI) window.AppUI.show('examresult');
   }
@@ -832,6 +872,42 @@
       '<button class="btn btn-ghost" data-exam-list type="button">시험지 목록으로</button>' +
       '</div></div>';
 
+    /* 서술형·코드 문항 수동 채점 */
+    var manualQuestions = [];
+    inc.forEach(function (index) {
+      var question = e.questions[index];
+      if ((question.responseType === 'essay' || question.responseType === 'code') && hasResponse(state.answers[index])) {
+        manualQuestions.push({ question: question, index: index });
+      }
+    });
+    if (manualQuestions.length) {
+      html += '<section class="q-card manual-grade-panel"><h3>서술형·코드 답안 채점</h3>' +
+        '<p class="exam-response-hint">문항별 답안을 확인하고 배점 범위 안에서 점수를 입력하세요. 입력한 점수는 이 기기의 학습 기록에 저장됩니다.</p>';
+      manualQuestions.forEach(function (item) {
+        var question = item.question;
+        var index = item.index;
+        var grade = state.manualGrades[index] || {};
+        var evaluation = window.AssessmentEngine.evaluateResponse(question, state.answers[index], grade);
+        var graded = evaluation.status === 'graded-manual';
+        html += '<div class="manual-grade-item"><div class="manual-grade-heading"><b>' +
+          (question.number || question.n || index + 1) + '번 · ' + (question.responseType === 'code' ? '코드' : '서술형') +
+          '</b><span>' + (question.points || question.pts || 0) + '점 만점 · ' +
+          (graded ? '채점 완료' : '채점 대기') + '</span></div>' +
+          '<div class="manual-grade-answer"><b>제출 답안</b><pre>' + esc2(state.answers[index] || '미응답') + '</pre></div>' +
+          '<label class="exam-response-field"><span>부여 점수 (0~' + (question.points || question.pts || 0) + ')</span>' +
+          '<input type="number" min="0" max="' + (question.points || question.pts || 0) +
+          '" step="0.5" data-manual-score="' + index + '" value="' +
+          (grade.earnedPoints !== undefined ? grade.earnedPoints : '') + '" inputmode="decimal" /></label>' +
+          '<label class="exam-response-field"><span>채점 의견 (선택)</span><textarea data-manual-feedback="' + index +
+          '" rows="3">' + esc2(grade.feedback || '') + '</textarea></label>' +
+          '<button type="button" class="btn btn-primary" data-manual-save="' + index + '">' +
+          (graded ? '채점 수정 저장' : '채점 저장') + '</button>' +
+          (grade.gradedAt ? '<span class="exam-response-hint">저장: ' + new Date(grade.gradedAt).toLocaleString() + '</span>' : '') +
+          '</div>';
+      });
+      html += '</section>';
+    }
+
     /* 등급컷 표 — 수동 채점이 남아 있으면 점수 확정 전이므로 표시하지 않습니다. */
     if (!r.pendingManual && hasGradeCuts) {
       html += '<div class="q-card cut-card"><h3 class="cut-title">원점수 등급컷</h3>' +
@@ -854,9 +930,9 @@
       var excluded = inc.indexOf(i) === -1;
       var mine = state.answers[i];
       var evaluation = !excluded && window.AssessmentEngine
-        ? window.AssessmentEngine.evaluateResponse(q, mine)
+        ? window.AssessmentEngine.evaluateResponse(q, mine, state.manualGrades[i])
         : { status: mine === q.ans ? 'correct' : (hasResponse(mine) ? 'incorrect' : 'unanswered') };
-      var ok = !excluded && evaluation.status === 'correct';
+      var ok = !excluded && (evaluation.status === 'correct' || (evaluation.status === 'graded-manual' && evaluation.isCorrect === true));
       var verdict = evaluation.status === 'pending-manual' ? '채점 대기' : (ok ? '정답' : (evaluation.status === 'unanswered' ? '미응답' : '오답'));
       if (excluded) {
         html += '<tr class="excl-row"><td>' + (i + 1) + '번</td><td>' + (q.pts || 2) + '점</td>' +
@@ -903,6 +979,30 @@
 
     view.innerHTML = html;
 
+    view.querySelectorAll('[data-manual-save]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var index = Number(button.getAttribute('data-manual-save'));
+        var examQuestion = e.questions[index];
+        var scoreInput = view.querySelector('[data-manual-score="' + index + '"]');
+        var feedbackInput = view.querySelector('[data-manual-feedback="' + index + '"]');
+        var rawScore = scoreInput ? scoreInput.value.trim() : '';
+        var maximum = Number(examQuestion.points || examQuestion.pts || 0);
+        var earnedPoints = Number(rawScore);
+        if (rawScore === '' || !Number.isFinite(earnedPoints) || earnedPoints < 0 || earnedPoints > maximum) {
+          window.alert('0점부터 ' + maximum + '점 사이의 점수를 입력해 주세요.');
+          return;
+        }
+        state.manualGrades[index] = {
+          earnedPoints: earnedPoints,
+          feedback: feedbackInput ? feedbackInput.value.trim() : '',
+          gradedAt: Date.now()
+        };
+        saveManualGrades();
+        updateExamWrongNotes(e);
+        updateHistoryAfterManualGrade(e, scoreExam(e));
+        renderResult(view);
+      });
+    });
     view.querySelector('[data-exam-again]').addEventListener('click', function () { startExam(state.examId); });
     view.querySelector('[data-export-ai]').addEventListener('click', function (event) {
       downloadAiReviewReport(event.currentTarget);
@@ -982,7 +1082,7 @@
         var question = exam.questions[i];
         var selected = state.answers[i];
         var included = includedIdx(exam).indexOf(i) !== -1;
-        var evaluation = window.AssessmentEngine.evaluateResponse(question, selected);
+        var evaluation = window.AssessmentEngine.evaluateResponse(question, selected, state.manualGrades[i]);
         var correct = included && evaluation.status === 'correct';
         var strokes = Array.isArray(state.strokes[i]) ? state.strokes[i] : [];
         var stimulus = question.stimulus || null;
@@ -1019,6 +1119,7 @@
           answerKey: question.answerKey,
           correctAnswer: formattedAnswer(question),
           result: !included ? 'excluded' : evaluation.status,
+          manualGrade: state.manualGrades[i] || null,
           handwriting: strokes,
           handwritingOverlayIncluded: !!overlay,
           imageEmbedded: imageEmbedded,

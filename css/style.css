@@ -964,3 +964,14 @@ p, li, figcaption { text-wrap: pretty; }
   margin:var(--space-3) 0; line-height:1.7; overflow-wrap:anywhere;
 }
 .exam-stimulus-code { white-space:pre-wrap; overflow-x:auto; padding:var(--space-3); border-radius:var(--radius-md); background:var(--color-bg-subtle); }
+
+
+/* 수동 채점 */
+.manual-grade-panel { margin:var(--space-6) 0; }
+.manual-grade-panel h3 { margin-bottom:var(--space-2); font-size:var(--text-lg); font-weight:800; }
+.manual-grade-item { display:grid; gap:var(--space-3); padding:var(--space-4) 0; border-top:1px solid var(--color-divider); }
+.manual-grade-heading { display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); flex-wrap:wrap; }
+.manual-grade-heading span { color:var(--color-text-muted); font-size:var(--text-sm); }
+.manual-grade-answer { min-width:0; }
+.manual-grade-answer pre { max-height:16rem; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; margin-top:var(--space-2); padding:var(--space-3); border-radius:var(--radius-md); background:var(--color-bg-subtle); }
+.manual-grade-item .exam-response-field { max-width:100%; }
