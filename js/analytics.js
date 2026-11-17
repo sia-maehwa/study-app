@@ -24,6 +24,13 @@
     return fallback;
   }
 
+  function courseStorageKey(courseId, key) {
+    /* Keep the original Social & Culture keys readable without migration. */
+    return courseId === 'social-culture'
+      ? key
+      : 'study_course_' + encodeURIComponent(courseId) + '_' + key;
+  }
+
   function escapeHtml(value) {
     return String(value == null ? '' : value)
       .replace(/&/g, '&amp;')
@@ -283,8 +290,8 @@
       exams: exams,
       history: readJSON(KEYS.examHistory, []),
       snapshots: readJSON(KEYS.examAttempts, {}),
-      conceptStats: readJSON(KEYS.conceptStats, { byUnit: {}, total: 0, correct: 0 }),
-      conceptWrong: readJSON(KEYS.conceptWrong, {}),
+      conceptStats: readJSON(courseStorageKey(courseId, KEYS.conceptStats), { byUnit: {}, total: 0, correct: 0 }),
+      conceptWrong: readJSON(courseStorageKey(courseId, KEYS.conceptWrong), {}),
       engine: global.AssessmentEngine
     });
   }
