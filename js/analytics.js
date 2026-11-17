@@ -150,6 +150,7 @@
         } else if (evaluation.status === 'incorrect' ||
             (evaluation.status === 'graded-manual' && evaluation.isCorrect === false)) {
           item.incorrectCount += 1;
+          if (evaluation.status === 'graded-manual') item.partialCount += 1;
           gradedQuestionAttempts += 1;
           item.lastStatus = evaluation.status === 'graded-manual' ? 'partial' : 'incorrect';
         } else if (evaluation.status === 'unanswered') {
