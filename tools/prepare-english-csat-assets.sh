@@ -52,9 +52,13 @@ pdftoppm -f 1 -l 8 -jpeg -scale-to-x 1600 -scale-to-y -1 \
 for number in $(seq 1 8); do
   n="$(printf '%02d' "$number")"
   source="$TMP/english-page-$n.jpg"
+  if [[ ! -s "$source" ]]; then
+    source="$TMP/english-page-$number.jpg"
+  fi
   target="$PAGE_DIR/page-$n.jpg"
   [[ -s "$source" ]] || {
     echo "Missing rendered page $n from the KICE PDF." >&2
+    find "$TMP" -maxdepth 1 -type f -name 'english-page-*.jpg' -print >&2
     exit 1
   }
   mv "$source" "$target"
