@@ -215,13 +215,20 @@
   /* ─── 등급컷 ─── */
   function cutsFor(e) {
     var data = courseAssessmentData(state.courseId);
-    if (isPredict(e)) return { cuts: data ? data.averageCuts : {}, note: '최근 5개년 평가원 기출 평균 등급컷 · 참고용' };
-    /* 수능·모의평가 모두 원점수 등급컷은 주요 입시기관 추정치 종합(kicegg 제공). 평가원 공식 발표는 표준점수 기준임 */
-    return { cuts: e.cuts, note: '주요 입시기관 원점수 추정 종합(kicegg 제공) · 참고용' };
+    var profile = getAssessmentProfile(e);
+    var cuts = e.cuts || (profile && profile.gradeCuts) ||
+      (isPredict(e) && data ? data.averageCuts : null);
+    if (!cuts || typeof cuts !== 'object') {
+      return { cuts: null, note: '이 평가에는 등급컷 데이터가 등록되어 있지 않습니다.' };
+    }
+    if (isPredict(e)) return { cuts: cuts, note: '과목별 연습 평가 기준 등급컷 · 참고용' };
+    /* 사회·문화 기출 등급컷은 주요 입시기관 원점수 추정 종합치입니다. */
+    return { cuts: cuts, note: e.gradeCutNote || '등록된 원점수 등급컷 · 참고용' };
   }
   function gradeOf(score, cuts) {
+    if (!cuts) return null;
     for (var g = 1; g <= 8; g++) {
-      if (score >= cuts[String(g)]) return g;
+      if (cuts[String(g)] !== undefined && score >= cuts[String(g)]) return g;
     }
     return 9;
   }
@@ -778,15 +785,18 @@
     var inc = includedIdx(e);
     var nodopyo = excludeDopyo() && e.questions.some(function (q) { return q.d; });
     var cf = cutsFor(e);
+    var assessmentProfile = getAssessmentProfile(e);
+    var gradeReferenceMax = Number(assessmentProfile && assessmentProfile.maxScore) || 50;
+    var hasGradeCuts = !!(cf.cuts && cf.cuts['1'] !== undefined);
 
     /* 등급 산출 */
     var gradeScore = r.score;
     var scaledNote = '';
-    if (nodopyo && r.max > 0 && r.max !== 50) {
-      gradeScore = Math.round(r.score * 50 / r.max * 10) / 10;
-      scaledNote = '도표 문항 제외로 환산 점수(' + gradeScore + '점/50점) 기준 추정이므로 참고용입니다.';
+    if (nodopyo && r.max > 0 && r.max !== gradeReferenceMax) {
+      gradeScore = Math.round(r.score * gradeReferenceMax / r.max * 10) / 10;
+      scaledNote = '도표 문항 제외로 환산 점수(' + gradeScore + '점/' + gradeReferenceMax + '점) 기준 추정이므로 참고용입니다.';
     }
-    var myGrade = r.pendingManual ? '채점 대기' : gradeOf(gradeScore, cf.cuts);
+    var myGrade = r.pendingManual ? '채점 대기' : (hasGradeCuts ? gradeOf(gradeScore, cf.cuts) : '미제공');
 
     var html = '<div class="result-hero exam-result-hero">' +
       '<div class="result-score">' + r.score + '<small>/' + r.max + '점</small></div>' +
@@ -794,8 +804,11 @@
       '<div class="result-sub">' + esc2(e.label) + ' · 정답 ' + r.correct + '문항 / ' + r.total + '문항' +
       (r.blank ? ' · 미응답 ' + r.blank + '문항' : '') +
       (r.pendingManual ? ' · 수동 채점 대기 ' + r.pendingManual + '문항' : '') + '</div>' +
-      '<div class="grade-badge">' + (r.pendingManual ? '수동 채점 필요 <b>' + r.pendingManual + '문항</b>' : '예상 등급 <b>' + myGrade + '등급</b>') +
-      (nodopyo ? ' <span class="grade-note">(참고)</span>' : '') + '</div>' +
+      (r.pendingManual
+        ? '<div class="grade-badge">수동 채점 필요 <b>' + r.pendingManual + '문항</b></div>'
+        : (hasGradeCuts
+          ? '<div class="grade-badge">예상 등급 <b>' + myGrade + '등급</b>' + (nodopyo ? ' <span class="grade-note">(참고)</span>' : '') + '</div>'
+          : '<div class="grade-badge">등급컷 미제공</div>')) +
       '<div class="result-actions">' +
       '<button class="btn btn-primary" data-exam-again type="button">같은 시험 다시 풀기</button>' +
       '<button class="btn btn-ghost" data-export-ai type="button">AI 분석 보고서 다운로드</button>' +
@@ -803,7 +816,7 @@
       '</div></div>';
 
     /* 등급컷 표 — 수동 채점이 남아 있으면 점수 확정 전이므로 표시하지 않습니다. */
-    if (!r.pendingManual) {
+    if (!r.pendingManual && hasGradeCuts) {
       html += '<div class="q-card cut-card"><h3 class="cut-title">원점수 등급컷</h3>' +
         (scaledNote ? '<p class="cut-warn">' + scaledNote + '</p>' : '') +
         '<table class="cut-table"><thead><tr><th>등급</th>';
