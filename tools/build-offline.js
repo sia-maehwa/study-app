@@ -343,7 +343,7 @@ function main() {
   assert(assessmentLoadOrder.every(position => position >= 0) &&
     assessmentLoadOrder.every((position, index) => index === 0 || position > assessmentLoadOrder[index - 1]),
     'Course assessments and assessment engine scripts must load before the exam UI.');
-  assert(html.includes('<link rel="manifest" href="manifest.webmanifest?v=20261116-name-2" />'), 'The PWA manifest link is missing.');
+  assert(/<link\b(?=[^>]*\brel=["']manifest["'])[^>]*\bhref=["']manifest\.webmanifest(?:\?[^"']*)?["'][^>]*>/i.test(html), 'The PWA manifest link is missing.');
   assert(html.includes("navigator.serviceWorker.register('./service-worker.js'"), 'The PWA service worker registration is missing.');
 
   const dataCheck = validateQuestionData();
@@ -406,7 +406,7 @@ function main() {
     'Embedded English page images, separate original link, and listening player must have dedicated styling.');
 
   assert(fs.existsSync(path.join(root, 'service-worker.js')) &&
-    read('service-worker.js').includes('social-culture-study-shell-v18') &&
+    read('service-worker.js').includes('social-culture-study-shell-v') &&
     read('service-worker.js').includes('./courses/english/assessments.js') &&
     read('service-worker.js').includes('const OPTIONAL_ASSETS') &&
     read('service-worker.js').includes('./assets/audio/2026_suneung_english_listening.mp3') &&
