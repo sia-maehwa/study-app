@@ -775,6 +775,9 @@
     var type = question.responseType || 'single-choice';
     if (type !== 'single-choice' && type !== 'multiple-select') return '';
     var options = question.options || [];
+    if (!options.length || options.every(function (option) {
+      return !String(option.content || option.text || '').trim();
+    })) return '';
     var selected = Array.isArray(response) ? response : (response == null ? [] : [response]);
     var correct = Array.isArray(question.answerKey) ? question.answerKey : [question.answerKey];
     return '<div class="pq-choices review">' + options.map(function (option, index) {
