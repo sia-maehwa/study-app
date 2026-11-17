@@ -180,7 +180,9 @@
       var evaluation = window.AssessmentEngine
         ? window.AssessmentEngine.evaluateResponse(question, selected, state.manualGrades[index])
         : { status: selected === question.ans ? 'correct' : 'incorrect' };
-      if (evaluation.status === 'correct' || evaluation.status === 'pending-manual') {
+      if (evaluation.status === 'correct' ||
+          (evaluation.status === 'graded-manual' && evaluation.isCorrect === true) ||
+          evaluation.status === 'pending-manual') {
         delete records[key];
         return;
       }
@@ -254,7 +256,8 @@
         ? window.AssessmentEngine.evaluateResponse(q, mine, state.manualGrades[i])
         : { status: mine === q.ans ? 'correct' : 'incorrect', earnedPoints: mine === q.ans ? (q.pts || 2) : 0 };
       if (evaluation.status === 'pending-manual') { pendingManual++; return; }
-      if (evaluation.status === 'correct') { score += evaluation.earnedPoints; correct++; }
+      if (evaluation.earnedPoints !== null && evaluation.earnedPoints !== undefined) score += evaluation.earnedPoints;
+      if (evaluation.status === 'correct' || (evaluation.status === 'graded-manual' && evaluation.isCorrect === true)) correct++;
     });
     return { score: score, max: maxScore(e), correct: correct, total: inc.length, blank: blank, pendingManual: pendingManual };
   }
@@ -1079,7 +1082,7 @@
         var question = exam.questions[i];
         var selected = state.answers[i];
         var included = includedIdx(exam).indexOf(i) !== -1;
-        var evaluation = window.AssessmentEngine.evaluateResponse(question, selected);
+        var evaluation = window.AssessmentEngine.evaluateResponse(question, selected, state.manualGrades[i]);
         var correct = included && evaluation.status === 'correct';
         var strokes = Array.isArray(state.strokes[i]) ? state.strokes[i] : [];
         var stimulus = question.stimulus || null;
@@ -1116,6 +1119,7 @@
           answerKey: question.answerKey,
           correctAnswer: formattedAnswer(question),
           result: !included ? 'excluded' : evaluation.status,
+          manualGrade: state.manualGrades[i] || null,
           handwriting: strokes,
           handwritingOverlayIncluded: !!overlay,
           imageEmbedded: imageEmbedded,
