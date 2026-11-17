@@ -11,7 +11,8 @@ EBSI_AUDIO="https://wdown.ebsi.co.kr/W61001/01exam/20251113/go3/eng_1_mp3_83X815
 mkdir -p "$PAGE_DIR" "$AUDIO_DIR"
 
 complete=1
-for n in $(seq -w 1 8); do
+for number in $(seq 1 8); do
+  n="$(printf '%02d' "$number")"
   [[ -s "$PAGE_DIR/page-$n.jpg" ]] || complete=0
 done
 [[ -s "$AUDIO_FILE" ]] || complete=0
@@ -48,7 +49,8 @@ echo "Rendering the eight odd-form pages (1–8) as local JPEG assets..."
 pdftoppm -f 1 -l 8 -jpeg -scale-to-x 1600 -scale-to-y -1 \
   -jpegopt quality=86 "$TMP/english-odd-even.pdf" "$TMP/english-page"
 
-for n in $(seq -w 1 8); do
+for number in $(seq 1 8); do
+  n="$(printf '%02d' "$number")"
   source="$TMP/english-page-$n.jpg"
   target="$PAGE_DIR/page-$n.jpg"
   [[ -s "$source" ]] || {
@@ -70,7 +72,8 @@ if [[ "$audio_type" != "audio/mpeg" ]]; then
   exit 1
 fi
 
-for n in $(seq -w 1 8); do
+for number in $(seq 1 8); do
+  n="$(printf '%02d' "$number")"
   [[ -s "$PAGE_DIR/page-$n.jpg" ]] || exit 1
 done
 [[ -s "$AUDIO_FILE" ]] || exit 1
