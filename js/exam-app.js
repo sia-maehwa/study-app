@@ -108,7 +108,7 @@
       var sameCourse = record.courseId
         ? record.courseId === state.courseId
         : state.courseId === 'social-culture';
-      if (record.id === id && sameCourse && (best === null || record.score > best.score)) best = record;
+      if (record.id === id && sameCourse && !record.pendingManual && (best === null || record.score > best.score)) best = record;
     });
     return best;
   }
@@ -592,6 +592,7 @@
     var n = state.idx + 1;
     var predict = isPredict(e);
     var q = e.questions[state.idx];
+    var hasTextPrompt = !!(q.q || (q.prompt && (typeof q.prompt === 'object' || String(q.prompt).length)));
 
     var html = '<div class="exam-run-top">' +
       '<div class="exam-run-info"><span class="quiz-tag exam-tag">' + esc2(e.label) + '</span>' +
@@ -604,11 +605,11 @@
     html += penBarHtml();
 
     var responseType = q.responseType || 'single-choice';
-    var questionClass = predict || q.q ? 'exam-qcard predict-card2' : 'exam-qcard';
+    var questionClass = predict || hasTextPrompt ? 'exam-qcard predict-card2' : 'exam-qcard';
     html += '<div class="' + questionClass + '">' +
-      '<div class="' + (predict || q.q ? 'pq-head' : 'exam-question-head') + '">' +
-      '<span class="' + (predict || q.q ? 'pq-num' : 'exam-question-number') + '">' + (q.number || q.n || n) + '번</span>' +
-      '<span class="' + (predict || q.q ? 'pq-badje' : 'exam-question-points') + '">' + (q.points || q.pts || 0) + '점</span>' +
+      '<div class="' + (predict || hasTextPrompt ? 'pq-head' : 'exam-question-head') + '">' +
+      '<span class="' + (predict || hasTextPrompt ? 'pq-num' : 'exam-question-number') + '">' + (q.number || q.n || n) + '번</span>' +
+      '<span class="' + (predict || hasTextPrompt ? 'pq-badje' : 'exam-question-points') + '">' + (q.points || q.pts || 0) + '점</span>' +
       (q.d ? '<span class="pq-badje dopyo">도표</span>' : '') +
       '<span class="exam-question-type">' + esc2(responseType) + '</span></div>' +
       '<div class="exam-qwrap">' + questionStimulusHtml(q, e, state.idx) + '</div>' +
@@ -711,7 +712,7 @@
     updateExamWrongNotes(e);
     var r = scoreExam(e);
     /* 학습 게임(지식의 탑) 성장 연동 */
-    if (window.GameUI) window.GameUI.reportExam({ score: r.score, max: r.max, correct: r.correct, label: e.label });
+    if (window.GameUI && !r.pendingManual) window.GameUI.reportExam({ score: r.score, max: r.max, correct: r.correct, label: e.label });
     loadHistory();
     state.history.push({ courseId: state.courseId, id: state.examId, score: r.score, max: r.max, correct: r.correct, total: r.total, pendingManual: r.pendingManual || 0, at: Date.now() });
     saveHistory();
@@ -1006,6 +1007,10 @@
           included: included,
           response: selected === undefined ? null : selected,
           selectedResponse: formattedResponse(question, selected),
+          selectedIndex: typeof selected === 'number' ? selected : null,
+          selectedOption: typeof selected === 'number' ? (CHOICE_LABELS[selected] || null) : null,
+          correctIndex: typeof question.answerKey === 'number' ? question.answerKey : null,
+          correctOption: typeof question.answerKey === 'number' ? (CHOICE_LABELS[question.answerKey] || null) : null,
           answerKey: question.answerKey,
           correctAnswer: formattedAnswer(question),
           result: !included ? 'excluded' : evaluation.status,
