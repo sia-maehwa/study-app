@@ -929,7 +929,7 @@
       var evaluation = !excluded && window.AssessmentEngine
         ? window.AssessmentEngine.evaluateResponse(q, mine, state.manualGrades[i])
         : { status: mine === q.ans ? 'correct' : (hasResponse(mine) ? 'incorrect' : 'unanswered') };
-      var ok = !excluded && evaluation.status === 'correct';
+      var ok = !excluded && (evaluation.status === 'correct' || (evaluation.status === 'graded-manual' && evaluation.isCorrect === true));
       var verdict = evaluation.status === 'pending-manual' ? '채점 대기' : (ok ? '정답' : (evaluation.status === 'unanswered' ? '미응답' : '오답'));
       if (excluded) {
         html += '<tr class="excl-row"><td>' + (i + 1) + '번</td><td>' + (q.pts || 2) + '점</td>' +
