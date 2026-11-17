@@ -519,6 +519,12 @@
     var app = window.AppUI;
     var e = examById(examId);
     if (!e) return;
+    var previousRunView = document.getElementById('view-examrun');
+    var previousListeningAudio = previousRunView && previousRunView.querySelector('[data-listening-audio]');
+    if (previousListeningAudio) {
+      previousListeningAudio.pause();
+      try { previousListeningAudio.currentTime = 0; } catch (error) {}
+    }
     state.examId = examId;
     state.answers = new Array(e.questions.length).fill(null);
     state.idx = 0;
