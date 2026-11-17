@@ -47,10 +47,17 @@
     try { storage.setItem(key, JSON.stringify(value)); } catch (e) {}
   }
 
-  function getWrong() { return readJSON(WRONG_KEY, {}); }
-  function setWrong(w) { writeJSON(WRONG_KEY, w); }
-  function getStats() { return readJSON(STATS_KEY, { byUnit: {}, total: 0, correct: 0 }); }
-  function setStats(s) { writeJSON(STATS_KEY, s); }
+  function courseStorageKey(key) {
+    var courseId = getSelectedSubject() || 'social-culture';
+    /* 사회·문화의 기존 저장 키는 그대로 유지해 이미 저장된 학습 기록을 보존합니다. */
+    return courseId === 'social-culture'
+      ? key
+      : 'study_course_' + encodeURIComponent(courseId) + '_' + key;
+  }
+  function getWrong() { return readJSON(courseStorageKey(WRONG_KEY), {}); }
+  function setWrong(w) { writeJSON(courseStorageKey(WRONG_KEY), w); }
+  function getStats() { return readJSON(courseStorageKey(STATS_KEY), { byUnit: {}, total: 0, correct: 0 }); }
+  function setStats(s) { writeJSON(courseStorageKey(STATS_KEY), s); }
 
   function esc(s) {
     return String(s)
@@ -320,7 +327,7 @@
 
   function bindQuizPen(view, question) {
     if (!window.PenTools) return;
-    var all = readJSON(QUIZ_PEN_KEY, {});
+    var all = readJSON(courseStorageKey(QUIZ_PEN_KEY), {});
     var questionKey = String(question.id);
     var strokes = Array.isArray(all[questionKey]) ? all[questionKey] : [];
     var tools = window.PenTools.bind({
@@ -329,9 +336,9 @@
       color: state.penColor,
       getStrokes: function () { return strokes; },
       save: function () {
-        var latest = readJSON(QUIZ_PEN_KEY, {});
+        var latest = readJSON(courseStorageKey(QUIZ_PEN_KEY), {});
         latest[questionKey] = strokes;
-        writeJSON(QUIZ_PEN_KEY, latest);
+        writeJSON(courseStorageKey(QUIZ_PEN_KEY), latest);
       },
       onModeChange: function (mode) { state.penMode = mode; },
       onColorChange: function (color) { state.penColor = color; storage.setItem(PEN_COLOR_KEY, color); },
