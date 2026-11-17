@@ -443,18 +443,24 @@
     return tools;
   }
 
+  function questionPromptHtml(question) {
+    var prompt = question.prompt !== undefined ? question.prompt : question.q;
+    if (typeof prompt === 'string' && prompt.length) {
+      return '<div class="pq-q">' + (question.promptFormat === 'text' ? esc2(prompt) : prompt) + '</div>';
+    }
+    if (prompt && typeof prompt === 'object') {
+      var promptContent = prompt.content == null ? '' : String(prompt.content);
+      var promptFormat = prompt.format || question.promptFormat || 'text';
+      return '<div class="pq-q">' + (promptFormat === 'html' ? promptContent : esc2(promptContent)) + '</div>';
+    }
+    return '';
+  }
+
   function questionStimulusHtml(question, exam, index) {
+    var promptHtml = questionPromptHtml(question);
     var stimulus = question.stimulus;
     if (!stimulus) {
-      var prompt = question.prompt !== undefined ? question.prompt : question.q;
-      if (typeof prompt === 'string' && prompt.length) {
-        return '<div class="pq-q">' + (question.promptFormat === 'text' ? esc2(prompt) : prompt) + '</div>';
-      }
-      if (prompt && typeof prompt === 'object') {
-        var promptContent = prompt.content == null ? '' : String(prompt.content);
-        var promptFormat = prompt.format || question.promptFormat || 'text';
-        return '<div class="pq-q">' + (promptFormat === 'html' ? promptContent : esc2(promptContent)) + '</div>';
-      }
+      if (promptHtml) return promptHtml;
       return '<img class="exam-qimg" id="examQImg" src="' + imgSrc(exam.id, index + 1) +
         '" alt="' + esc2(exam.label) + ' ' + (index + 1) + '번 문항" loading="eager" />';
     }
@@ -463,8 +469,10 @@
     var content = typeof contentValue === 'string' ? contentValue : '';
     var assets = Array.isArray(stimulus.assets) ? stimulus.assets : [];
     var src = stimulus.src || stimulus.url || assets[0] || '';
+    var body = '';
+
     if (type === 'image') {
-      return assets.length
+      body = assets.length
         ? assets.map(function (asset, assetIndex) {
             var url = typeof asset === 'string' ? asset : (asset.url || asset.src || '');
             var alt = typeof asset === 'object' && asset.alt ? asset.alt : (question.prompt || exam.label);
@@ -473,33 +481,34 @@
           }).join('')
         : '<img class="exam-qimg" id="examQImg" src="' + esc2(src) + '" alt="' +
           esc2(question.prompt || exam.label) + '" loading="eager" />';
-    }
-    if (type === 'audio') {
-      return '<audio class="exam-response-audio" controls preload="metadata" src="' + esc2(src) + '">' +
+    } else if (type === 'audio') {
+      body = '<audio class="exam-response-audio" controls preload="metadata" src="' + esc2(src) + '">' +
         '오디오를 재생할 수 없습니다.</audio>';
-    }
-    if (type === 'code') return '<pre class="exam-stimulus-code"><code>' + esc2(content || JSON.stringify(contentValue, null, 2)) + '</code></pre>';
-    if (type === 'text') return '<div class="exam-stimulus-text">' + esc2(content || contentValue) + '</div>';
-    if (type === 'table' && contentValue && typeof contentValue === 'object') {
+    } else if (type === 'code') {
+      body = '<pre class="exam-stimulus-code"><code>' + esc2(content || JSON.stringify(contentValue, null, 2)) + '</code></pre>';
+    } else if (type === 'text') {
+      body = '<div class="exam-stimulus-text">' + esc2(content || contentValue) + '</div>';
+    } else if (type === 'table' && contentValue && typeof contentValue === 'object') {
       var headers = contentValue.headers || contentValue.columns || [];
       var rows = contentValue.rows || [];
-      return '<div class="exam-stimulus-table"><table><thead><tr>' +
+      body = '<div class="exam-stimulus-table"><table><thead><tr>' +
         headers.map(function (header) { return '<th>' + esc2(header) + '</th>'; }).join('') +
         '</tr></thead><tbody>' + rows.map(function (row) {
           return '<tr>' + (Array.isArray(row) ? row : []).map(function (cell) {
             return '<td>' + esc2(cell) + '</td>';
           }).join('') + '</tr>';
         }).join('') + '</tbody></table></div>';
-    }
-    if (type === 'chart' && contentValue && typeof contentValue === 'object') {
+    } else if (type === 'chart' && contentValue && typeof contentValue === 'object') {
       var chartText = contentValue.description || JSON.stringify(contentValue, null, 2);
-      return '<pre class="exam-stimulus-code">' + esc2(chartText) + '</pre>';
-    }
-    if (type === 'math') {
+      body = '<pre class="exam-stimulus-code">' + esc2(chartText) + '</pre>';
+    } else if (type === 'math') {
       var mathContent = content || (contentValue && contentValue.latex) || '';
-      return '<div class="exam-stimulus-math">' + mathContent + '</div>';
+      body = '<div class="exam-stimulus-math">' + mathContent + '</div>';
+    } else {
+      body = '<div class="exam-stimulus-' + esc2(type) + '">' + content + '</div>';
     }
-    return '<div class="exam-stimulus-' + esc2(type) + '">' + content + '</div>';
+
+    return promptHtml + body;
   }
 
   function renderResponseControl(question, index) {
