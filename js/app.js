@@ -13,6 +13,10 @@
   var SUBJECTS = window.StudyCourseRegistry
     ? window.StudyCourseRegistry.listAvailable()
     : [];
+  var PLANNED_SUBJECTS = window.StudyCourseRegistry &&
+    typeof window.StudyCourseRegistry.listPlanned === 'function'
+    ? window.StudyCourseRegistry.listPlanned()
+    : [];
 
   var UNIT_COLORS = {
     1: '#2456e6',
@@ -189,7 +193,7 @@
       '<span class="hero-kicker">STUDY SUBJECT</span>' +
       '<h1>어떤 과목을 공부할까요?</h1>' +
       '<p class="subject-pick-description">공부할 과목을 선택해 주세요. 선택한 과목은 다음 실행에도 기억합니다.</p>' +
-      '<div class="section-head"><h2>과목 선택</h2><span>현재 등록된 과목 ' + SUBJECTS.length + '개</span></div>' +
+      '<div class="section-head"><h2>과목 선택</h2><span>학습 가능 ' + SUBJECTS.length + '개 · 준비 중 ' + PLANNED_SUBJECTS.length + '개</span></div>' +
       '<div class="subject-pick-grid">';
 
     SUBJECTS.forEach(function (subject) {
@@ -201,7 +205,16 @@
         '</button>';
     });
 
-    html += '</div><p class="subject-pick-footnote">현재 실제 학습 데이터가 준비된 과목만 표시합니다. 다른 과목은 문제와 해설 데이터가 준비되면 이 목록에 추가됩니다.</p></div>';
+    PLANNED_SUBJECTS.forEach(function (subject) {
+      html += '<button type="button" class="subject-pick-button subject-pick-button-planned" disabled aria-disabled="true">' +
+        '<span class="subject-pick-mark" aria-hidden="true">' + esc(subject.symbol || '•') + '</span>' +
+        '<span class="subject-pick-copy"><strong>' + esc(subject.title) + '</strong>' +
+        '<small>콘텐츠 준비 중</small><span>' + esc(subject.detail || subject.description || '학습 자료를 준비하고 있습니다.') + '</span></span>' +
+        '<span class="subject-pick-action">준비 중</span>' +
+        '</button>';
+    });
+
+    html += '</div><p class="subject-pick-footnote">준비 중인 과목은 지문·문항·정답·해설 데이터와 검증이 완료된 뒤 선택할 수 있습니다.</p></div>';
     el.views.subjectSelect.innerHTML = html;
   }
 
