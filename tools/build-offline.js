@@ -24,6 +24,16 @@ function validateQuestionData() {
   assert(registry && typeof registry.listAvailable === 'function', 'Course registry did not initialize.');
   const availableCourses = Array.from(registry.listAvailable());
   assert(availableCourses.length === 1, 'Expected only the content-ready Social & Culture course to be available.');
+  const plannedCourses = Array.from(registry.listPlanned());
+  assert(plannedCourses.length === 1, 'Expected one planned course in the course catalog.');
+  const english = registry.get('english');
+  assert(english && english.status === 'planned' && english.discipline === 'languages',
+    'The English course must be registered as planned, not available.');
+  assert(!english.contentKey && !english.assessmentKey &&
+    registry.getContent('english') === null && registry.getAssessmentData('english') === null,
+    'The planned English course must not point to empty or fabricated content modules.');
+  assert(!availableCourses.some(course => course.id === 'english'),
+    'The planned English course must not enter the available course selector.');
   const socialCulture = registry.get('social-culture');
   assert(socialCulture && socialCulture.status === 'available', 'The Social & Culture course is missing or unavailable.');
   assert(socialCulture.contentKey === 'social-culture', 'The Social & Culture course has no content module key.');
@@ -285,6 +295,16 @@ function main() {
   assert(analyticsSource.includes('function calculate(options)') && analyticsSource.includes('unitQuestionCoverage'),
     'The learning analytics calculation module is missing its testable model or classification coverage check.');
   const appSource = read('js/app.js');
+  const styleSource = read('css/style.css');
+  assert(appSource.includes('PLANNED_SUBJECTS') && appSource.includes('subject-pick-button-planned') &&
+    appSource.includes('disabled aria-disabled="true"'),
+    'Planned courses must be visible but not selectable.');
+  assert(styleSource.includes('.subject-pick-button:disabled') &&
+    styleSource.includes('.subject-pick-button:disabled:hover'),
+    'Disabled planned-course cards must not show active hover or focus behavior.');
+  assert(fs.existsSync(path.join(root, 'courses/english/README.md')) &&
+    read('courses/english/README.md').includes('아직 문항 데이터는 등록하지 않았습니다'),
+    'The English course scaffold must clearly state that no question data is registered yet.');
   assert(appSource.includes('function courseStorageKey(key)') &&
     appSource.includes("'study_course_' + encodeURIComponent(courseId) + '_' + key"),
     'Concept learning storage must be namespaced by course while retaining the legacy-course branch.');
@@ -295,7 +315,7 @@ function main() {
     analyticsSource.includes('courseStorageKey(courseId, KEYS.conceptWrong)'),
     'Learning analytics must read concept statistics and wrong notes from the selected course namespace.');
 
-  assert(fs.existsSync(path.join(root, 'service-worker.js')) && read('service-worker.js').includes('social-culture-study-shell-v13'),
+  assert(fs.existsSync(path.join(root, 'service-worker.js')) && read('service-worker.js').includes('social-culture-study-shell-v14'),
     'The service worker cache must be advanced for the learning analytics module.');
   assert(!/https?:\/\//i.test(html.replace(/<link rel="icon" href="data:image\/svg\+xml,[^"]*"/, '')),
     'The runtime template must not depend on an external URL.');
