@@ -68,16 +68,22 @@
       id: 'english',
       title: '영어',
       symbol: 'EN',
-      status: 'planned',
+      status: 'available',
+      assessmentOnly: true,
+      assessmentKey: 'english',
       educationStage: 'high-school',
       discipline: 'languages',
       courseKind: 'core',
       curriculum: {
-        name: '고등학교 영어 · 콘텐츠 준비 중',
+        name: '고등학교 영어 · 실전 평가',
         version: null
       },
-      description: '영어 지문·어휘·독해 학습 자료를 준비 중입니다.',
-      detail: '지문·문항·정답·해설 미등록'
+      description: '평가원 기출 답안 입력과 채점을 지원합니다. 지문은 공식 원문 자료에서 확인합니다.',
+      detail: '2026학년도 수능 45문항 · 70분 · 홀수형 답안지',
+      content: {
+        officialAssessmentSessions: 1,
+        officialAssessmentQuestions: 45
+      }
     }
   ];
 
