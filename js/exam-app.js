@@ -42,7 +42,7 @@
     (data.practiceExams || []).forEach(function (practice) { list.push(practice); });
     if (!window.AssessmentEngine) return list;
     assessmentCache[id] = list.map(function (assessment) {
-      var predict = isPredict(assessment);
+      var predict = isPredict(assessment, id);
       var source = {};
       Object.keys(assessment).forEach(function (key) { source[key] = assessment[key]; });
       if (!predict && id === 'social-culture' && !source.questionImagePattern) {
@@ -58,9 +58,9 @@
   function examById(id) {
     return allExams(state.courseId).filter(function (e) { return e.id === id; })[0] || null;
   }
-  function isPredict(e) {
+  function isPredict(e, courseId) {
     if (!e) return false;
-    var match = window.StudyCourseRegistry && window.StudyCourseRegistry.findAssessmentProfileForExam(e);
+    var match = window.StudyCourseRegistry && window.StudyCourseRegistry.findAssessmentProfileForExam(e, courseId || state.courseId);
     if (match && match.profile && match.profile.category) return match.profile.category === 'practice';
     return e.assessmentCategory === 'practice' ||
       ['self-produced-practice', 'practice', 'quiz', 'homework'].indexOf(e.assessmentType || e.kind) !== -1 ||
