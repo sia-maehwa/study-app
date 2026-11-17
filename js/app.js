@@ -599,7 +599,7 @@
           ' · 정답 ' + correct + ' · ' + (Number(record.points) || 2) + '점</div>' +
           (when ? '<div class="wrong-date">' + when + ' 응시</div>' : '') +
           '<div class="wrong-actions">' +
-          '<button class="btn btn-ghost" data-exam-retry="' + esc(record.examId) + '" type="button">해당 모의고사 다시 풀기</button>' +
+          '<button class="btn btn-ghost" data-exam-retry="' + esc(record.examId) + '" data-exam-course="' + esc(record.courseId || 'social-culture') + '" type="button">해당 모의고사 다시 풀기</button>' +
           '<button class="btn btn-ghost" data-exam-remove="' + esc(record.key) + '" type="button">목록에서 지우기</button>' +
           '</div></div>';
       });
@@ -633,7 +633,7 @@
     });
     el.views.wrong.querySelectorAll('[data-exam-retry]').forEach(function (b) {
       b.addEventListener('click', function () {
-        if (window.ExamUI) window.ExamUI.retryExam(b.dataset.examRetry);
+        if (window.ExamUI) window.ExamUI.retryExam(b.dataset.examRetry, b.dataset.examCourse || 'social-culture');
       });
     });
     el.views.wrong.querySelectorAll('[data-exam-remove]').forEach(function (b) {
