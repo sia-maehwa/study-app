@@ -336,7 +336,7 @@ function main() {
     'src="js/exams.js"',
     'src="js/predict.js"',
     'src="js/assessment-engine.js"',
-    'src="js/exam-app.js?v=20261117-attempt-history-1"',
+    'src="js/exam-app.js?v=20261117-english-image-pen-fix-1"',
     'src="js/analytics.js?v=20261117-learning-analytics-1"',
     'src="js/app.js"'
   ].map(ref => html.indexOf(ref));
