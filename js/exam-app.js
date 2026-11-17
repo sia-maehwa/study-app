@@ -177,12 +177,12 @@
     if (!record || !record.attemptId) return;
     var key = (record.courseId || 'social-culture') + ':' + record.id + ':' + record.attemptId;
     var snapshot = loadAttempts()[key];
+    state.courseId = record.courseId || 'social-culture';
     var exam = examById(record.id);
     if (!snapshot || !exam) {
       window.alert('이 응시 기록의 상세 답안이 저장되어 있지 않습니다.');
       return;
     }
-    state.courseId = record.courseId || 'social-culture';
     state.examId = record.id;
     state.attemptId = record.attemptId;
     state.answers = Array.isArray(snapshot.answers) ? snapshot.answers.slice() : [];
@@ -1031,9 +1031,9 @@
       var excluded = inc.indexOf(i) === -1;
       var mine = state.answers[i];
       var evaluation = !excluded && window.AssessmentEngine
-        ? window.AssessmentEngine.evaluateResponse(q, mine)
+        ? window.AssessmentEngine.evaluateResponse(q, mine, state.manualGrades[i])
         : { status: mine === q.ans ? 'correct' : (hasResponse(mine) ? 'incorrect' : 'unanswered') };
-      var ok = !excluded && evaluation.status === 'correct';
+      var ok = !excluded && (evaluation.status === 'correct' || (evaluation.status === 'graded-manual' && evaluation.isCorrect === true));
       var verdict = excluded ? '제외' : (evaluation.status === 'pending-manual' ? '채점 대기' :
         (ok ? '정답' : (evaluation.status === 'unanswered' ? '미응답' : '오답')));
       html += '<details class="exam-review' + (!ok && !excluded ? ' wrong-q' : '') + (excluded ? ' excl-q' : '') + '">' +
@@ -1164,7 +1164,7 @@
         var selected = state.answers[i];
         var included = includedIdx(exam).indexOf(i) !== -1;
         var evaluation = window.AssessmentEngine.evaluateResponse(question, selected, state.manualGrades[i]);
-        var correct = included && evaluation.status === 'correct';
+        var correct = included && (evaluation.status === 'correct' || (evaluation.status === 'graded-manual' && evaluation.isCorrect === true));
         var strokes = Array.isArray(state.strokes[i]) ? state.strokes[i] : [];
         var stimulus = question.stimulus || null;
         var stimulusAssets = stimulus && Array.isArray(stimulus.assets) ? stimulus.assets : [];
