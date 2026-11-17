@@ -130,6 +130,11 @@ function validateQuestionData() {
   assert(engine.evaluateResponse(essay, 'written response', { earnedPoints: 4 }).earnedPoints === 4, 'Manual rubric score handling failed.');
   assert(engine.evaluateResponse(essay, 'written response', { earnedPoints: 6 }).earnedPoints === 5, 'Manual rubric scores must be capped at the question maximum.');
   assert(engine.gradeAttempt([essay], ['written response'], { 0: { earnedPoints: 4 } }).earnedPoints === 4, 'Manual grading must be included in attempt totals.');
+  const partialManual = engine.gradeAttempt([essay], ['written response'], { 0: { earnedPoints: 4 } });
+  assert(partialManual.earnedPoints === 4 && partialManual.pendingManualCount === 0 && partialManual.correctCount === 0,
+    'Partial manual grading must contribute points without counting as a fully correct response.');
+  const fullManual = engine.gradeAttempt([essay], ['written response'], { 0: { earnedPoints: 5 } });
+  assert(fullManual.earnedPoints === 5 && fullManual.correctCount === 1, 'Full manual grading must count as correct.');
   assert(engine.validateQuestion(essay).valid && engine.validateQuestion(code).valid, 'Manual-review configuration validation failed.');
   assert(engine.gradeAttempt([single, multi], [1, [0, 2]]).earnedPoints === 5, 'Generic attempt aggregation failed.');
   return { exams, conceptQuestions: base.questions.length, predictQuestions: predict.reduce((sum, exam) => sum + exam.questions.length, 0) };
