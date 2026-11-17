@@ -14,12 +14,13 @@
   "assessmentDate": "2025-11-13",
   "durationSec": 4200,
   "maxScore": 100,
-  "sourceUrl": "https://cdn.kice.re.kr/suneung-26/suneung-26_3.pdf",
+  "sourceUrl": "https://files-scs.pstatic.net/2025/11/18/jNffYLbN3u/2026%20%EC%88%98%EB%8A%A5%20%EC%98%81%EC%96%B4%20%EB%AC%B8%EC%A0%9C.pdf",
+  "officialSourceUrl": "https://cdn.kice.re.kr/suneung-26/suneung-26_3.pdf",
   "answerKeyUrl": "https://cdn.kice.re.kr/suneung-26/suneung-26_3a.pdf",
   "listeningAudioUrl": "assets/audio/2026_suneung_english_listening.mp3",
   "audioSourceUrl": "https://wdown.ebsi.co.kr/W61001/01exam/20251113/go3/eng_1_mp3_83X8155G.mp3",
   "sourceLabel": "한국교육과정평가원 2026학년도 수능 영어 영역 홀수형 문제지·정답표",
-  "sourceNote": "평가원 문제지 1~8쪽 원문 이미지와 듣기 1~17번 통합 음원이 앱에 포함되어 있습니다. 시험지는 페이지 이미지로 표시되며, 원문 전체 보기와 출처 확인은 평가원 PDF 링크를 이용하세요.",
+  "sourceNote": "한국교육과정평가원 원출처의 홀수형 원문 8쪽과 EBSi 듣기 1~17번 통합 음원을 앱에 포함했습니다. 원문 이미지와 음원은 앱 안에서 바로 이용할 수 있습니다.",
   "questionFormat": "embedded-official-page-answer-sheet",
   "questions": [
     {
