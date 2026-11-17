@@ -21,6 +21,7 @@ on:
       - 'js/**'
       - 'assets/**'
       - 'tools/build-offline.js'
+      - 'tools/prepare-english-csat-assets.sh'
       - '.github/workflows/build-local-zip.yml'
   workflow_dispatch:
 
@@ -49,6 +50,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y poppler-utils
+
+      - name: Check English asset script syntax
+        run: bash -n tools/prepare-english-csat-assets.sh
 
       - name: Prepare embedded official English exam assets
         run: bash tools/prepare-english-csat-assets.sh
