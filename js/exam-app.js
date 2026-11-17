@@ -28,6 +28,8 @@
     penMode: 'pen',   /* pen | eraser | off */
     penColor: (window.Store && window.Store.get(PEN_COLOR_KEY)) || DEFAULT_PEN_COLOR,
     strokes: {},      /* { 문항인덱스: [stroke, ...] } */
+    listeningAudioTime: 0,
+    listeningAudioPlaying: false
   };
 
   /* ─── 데이터 접근 ─── */
@@ -524,6 +526,8 @@
     state.attemptId = null;
     state.manualGrades = {};
     state.penMode = 'pen';
+    state.listeningAudioTime = 0;
+    state.listeningAudioPlaying = false;
     loadPen(examId);
     /* 첫 (포함된) 문항으로 이동 */
     var inc = includedIdx(e);
@@ -621,8 +625,14 @@
         ? assets.map(function (asset, assetIndex) {
             var url = typeof asset === 'string' ? asset : (asset.url || asset.src || '');
             var alt = typeof asset === 'object' && asset.alt ? asset.alt : (question.prompt || exam.label);
-            return '<img class="exam-qimg" ' + (assetIndex === 0 ? 'id="examQImg" ' : '') +
+            var image = '<img class="exam-qimg" ' + (assetIndex === 0 ? 'id="examQImg" ' : '') +
               'src="' + esc2(url) + '" alt="' + esc2(alt) + '" loading="eager" />';
+            if (typeof asset === 'object' && asset.openOriginal) {
+              return '<a class="exam-qimg-link" href="' + esc2(url) +
+                '" target="_blank" rel="noopener noreferrer" aria-label="원문 페이지 이미지를 원본 크기로 열기">' +
+                image + '<span class="exam-image-zoom-hint">이미지를 누르면 원본 크기로 열립니다</span></a>';
+            }
+            return image;
           }).join('')
         : '<img class="exam-qimg" id="examQImg" src="' + esc2(src) + '" alt="' +
           esc2(question.prompt || exam.label) + '" loading="eager" />';
@@ -719,6 +729,16 @@
     var n = state.idx + 1;
     var predict = isPredict(e);
     var q = e.questions[state.idx];
+    var previousListeningAudio = view.querySelector('[data-listening-audio]');
+    if (previousListeningAudio) {
+      state.listeningAudioTime = Number(previousListeningAudio.currentTime) || 0;
+      state.listeningAudioPlaying = !previousListeningAudio.paused && !previousListeningAudio.ended;
+    }
+    if (q.section !== 'listening') {
+      if (previousListeningAudio) previousListeningAudio.pause();
+      state.listeningAudioTime = 0;
+      state.listeningAudioPlaying = false;
+    }
     var hasTextPrompt = !!(q.q || (q.prompt && (typeof q.prompt === 'object' || String(q.prompt).length)));
 
     var html = '<div class="exam-run-top">' +
@@ -732,6 +752,11 @@
     html += '<div class="exam-progress"><div class="progress-track"><div class="progress-fill" style="width:' + ((pos + 1) / inc.length * 100) + '%"></div></div></div>';
     if (e.sourceUrl) {
       html += '<div class="exam-source-banner compact"><span>' + esc2(e.sourceNote || '') + '</span></div>';
+    }
+    if (q.section === 'listening' && e.listeningAudioUrl) {
+      html += '<div class="exam-listening-audio"><label for="englishListeningAudio">영어 듣기 음원 · 1~17번 통합 재생</label>' +
+        '<audio id="englishListeningAudio" data-listening-audio controls preload="metadata" src="' +
+        esc2(e.listeningAudioUrl) + '">이 브라우저에서는 듣기 음원을 재생할 수 없습니다.</audio></div>';
     }
 
     html += penBarHtml();
@@ -774,6 +799,27 @@
     }
 
     view.innerHTML = html;
+    var listeningAudio = view.querySelector('[data-listening-audio]');
+    if (listeningAudio) {
+      try {
+        if (state.listeningAudioTime > 0) listeningAudio.currentTime = state.listeningAudioTime;
+      } catch (error) {}
+      listeningAudio.addEventListener('timeupdate', function () {
+        state.listeningAudioTime = Number(listeningAudio.currentTime) || 0;
+      });
+      listeningAudio.addEventListener('play', function () { state.listeningAudioPlaying = true; });
+      listeningAudio.addEventListener('pause', function () { state.listeningAudioPlaying = false; });
+      listeningAudio.addEventListener('ended', function () {
+        state.listeningAudioPlaying = false;
+        state.listeningAudioTime = 0;
+      });
+      if (state.listeningAudioPlaying) {
+        var resumePlayback = listeningAudio.play();
+        if (resumePlayback && typeof resumePlayback.catch === 'function') {
+          resumePlayback.catch(function () { state.listeningAudioPlaying = false; });
+        }
+      }
+    }
     tickTimer();
 
     /* 답안 선택 */
@@ -1319,6 +1365,10 @@
       stopTimer();
       var runView = document.getElementById('view-examrun');
       if (runView && runView._penToolsCleanup) runView._penToolsCleanup();
+      var listeningAudio = runView && runView.querySelector('[data-listening-audio]');
+      if (listeningAudio) listeningAudio.pause();
+      state.listeningAudioPlaying = false;
+      state.listeningAudioTime = 0;
     },
   };
 })();
