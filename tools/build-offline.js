@@ -42,6 +42,8 @@ function validateQuestionData() {
   const matchedPredict = registry.findAssessmentProfileForExam({ id: 'predict_mock_1', kind: 'predict' });
   assert(matchedOfficial && matchedOfficial.profile.id === 'official-mock', 'Official exam profile matching failed.');
   assert(matchedPredict && matchedPredict.profile.id === 'predict-mock', 'Practice exam profile matching failed.');
+  assert(registry.findAssessmentProfileForExam({ id: '2026_suneung', kind: 'suneung' }, 'unknown-course') === null,
+    'Assessment profiles must not match across course boundaries.');
   for (const profile of [officialProfile, predictProfile]) {
     assert(profile && profile.durationSec === 1800 && profile.questionCount === 20 && profile.choiceCount === 5 && profile.maxScore === 50, 'An assessment profile does not match the current mock exam format.');
   }
@@ -123,6 +125,8 @@ function validateQuestionData() {
   assert(engine.evaluateResponse(numeric, '3.145').status === 'correct', 'Numeric tolerance grading failed.');
   assert(engine.evaluateResponse(essay, 'written response').status === 'pending-manual', 'Essay response must remain pending manual grading.');
   assert(engine.evaluateResponse(code, 'console.log(1)').status === 'pending-manual', 'Code response must remain pending manual grading.');
+  assert(engine.evaluateResponse(multi, []).status === 'unanswered', 'An empty multi-select response must be unanswered.');
+  assert(engine.evaluateResponse(short, '   ').status === 'unanswered', 'A whitespace-only short answer must be unanswered.');
   assert(engine.evaluateResponse(essay, 'written response', { earnedPoints: 4 }).earnedPoints === 4, 'Manual rubric score handling failed.');
   assert(engine.validateQuestion(essay).valid && engine.validateQuestion(code).valid, 'Manual-review configuration validation failed.');
   assert(engine.gradeAttempt([single, multi], [1, [0, 2]]).earnedPoints === 5, 'Generic attempt aggregation failed.');
