@@ -39,6 +39,8 @@
         {
           id: 'official-mock',
           type: 'official-exam',
+          category: 'official',
+          assessmentTypes: ['official-exam'],
           label: '평가원 기출',
           durationSec: 1800,
           questionCount: 20,
@@ -50,6 +52,8 @@
         {
           id: 'predict-mock',
           type: 'self-produced-practice',
+          category: 'practice',
+          assessmentTypes: ['self-produced-practice', 'practice', 'quiz'],
           label: '수능 예상 모의고사',
           durationSec: 1800,
           questionCount: 20,
@@ -99,7 +103,9 @@
       (course.assessmentProfiles || []).some(function (profile) {
         var prefixMatch = profile.idPrefix && String(exam.id || '').indexOf(profile.idPrefix) === 0;
         var kindMatch = Array.isArray(profile.sessionKinds) && profile.sessionKinds.indexOf(exam.kind) !== -1;
-        if (prefixMatch || kindMatch) {
+        var typeMatch = Array.isArray(profile.assessmentTypes) &&
+          profile.assessmentTypes.indexOf(exam.assessmentType) !== -1;
+        if (prefixMatch || kindMatch || typeMatch) {
           match = { course: course, profile: profile };
           return true;
         }
