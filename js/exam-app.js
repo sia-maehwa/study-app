@@ -13,6 +13,7 @@
   var DEFAULT_PEN_COLOR = '#d6336c';
 
   var state = {
+    courseId: 'social-culture',
     examId: null,
     answers: [],      /* 문항별 선택 (0~4, null=미응답) */
     idx: 0,
@@ -26,25 +27,45 @@
   };
 
   /* ─── 데이터 접근 ─── */
-  function allExams() {
-    var list = (typeof EXAMS !== 'undefined' ? EXAMS : []).slice();
-    if (typeof PREDICT_EXAMS !== 'undefined') {
-      /* 예상 모의고사 문항의 정답 필드(a)를 기출 형식(ans)으로 맞춤 */
-      PREDICT_EXAMS.forEach(function (p) {
-        list.push({
-          id: p.id, year: p.year, kind: p.kind, label: p.label, sub: p.sub,
-          questions: p.questions.map(function (q) {
-            return { n: q.n, ans: q.a, pts: q.pts, d: q.d, u: q.u, q: q.q, c: q.c, e: q.e };
-          }),
-        });
+  function courseAssessmentData(courseId) {
+    return window.StudyCourseRegistry
+      ? window.StudyCourseRegistry.getAssessmentData(courseId || state.courseId)
+      : null;
+  }
+  var assessmentCache = {};
+  function allExams(courseId) {
+    var id = courseId || state.courseId || 'social-culture';
+    if (assessmentCache[id]) return assessmentCache[id].slice();
+    var data = courseAssessmentData(id);
+    if (!data) return [];
+    var list = (data.officialExams || []).slice();
+    (data.practiceExams || []).forEach(function (practice) { list.push(practice); });
+    if (!window.AssessmentEngine) return list;
+    assessmentCache[id] = list.map(function (assessment) {
+      var predict = isPredict(assessment);
+      var source = {};
+      Object.keys(assessment).forEach(function (key) { source[key] = assessment[key]; });
+      if (!predict && id === 'social-culture' && !source.questionImagePattern) {
+        source.questionImagePattern = 'assets/exams/{assessmentId}/q{number}.jpg';
+      }
+      return window.AssessmentEngine.normalizeAssessment(source, {
+        courseId: id,
+        assessmentType: source.assessmentType || (predict ? 'self-produced-practice' : 'official-exam')
       });
-    }
-    return list;
+    });
+    return assessmentCache[id].slice();
   }
   function examById(id) {
-    return allExams().filter(function (e) { return e.id === id; })[0] || null;
+    return allExams(state.courseId).filter(function (e) { return e.id === id; })[0] || null;
   }
-  function isPredict(e) { return e && e.id.indexOf('predict_') === 0; }
+  function isPredict(e) {
+    if (!e) return false;
+    var match = window.StudyCourseRegistry && window.StudyCourseRegistry.findAssessmentProfileForExam(e);
+    if (match && match.profile && match.profile.category) return match.profile.category === 'practice';
+    return e.assessmentCategory === 'practice' ||
+      ['self-produced-practice', 'practice', 'quiz', 'homework'].indexOf(e.assessmentType || e.kind) !== -1 ||
+      !!(e.id && e.id.indexOf('predict_') === 0);
+  }
   function getAssessmentProfile(exam) {
     if (!window.StudyCourseRegistry || !exam) return null;
     var match = window.StudyCourseRegistry.findAssessmentProfileForExam(exam);
@@ -60,7 +81,9 @@
   }
   function unitName(u) {
     try {
-      var un = UNITS.filter(function (x) { return x.id === u; })[0];
+      var content = window.StudyCourseRegistry && window.StudyCourseRegistry.getContent(state.courseId);
+      var units = content && content.units ? content.units : [];
+      var un = units.filter(function (x) { return x.id === u; })[0];
       return un ? un.name : '';
     } catch (err) { return ''; }
   }
@@ -81,19 +104,26 @@
   }
   function bestRecord(id) {
     var best = null;
-    state.history.forEach(function (h) {
-      if (h.id === id && (best === null || h.score > best.score)) best = h;
+    state.history.forEach(function (record) {
+      var sameCourse = record.courseId
+        ? record.courseId === state.courseId
+        : state.courseId === 'social-culture';
+      if (record.id === id && sameCourse && !record.pendingManual && (best === null || record.score > best.score)) best = record;
     });
     return best;
   }
+  function examStorageId(examId) {
+    return state.courseId === 'social-culture' ? examId : state.courseId + ':' + examId;
+  }
   function loadPen(examId) {
     var all = window.Store ? window.Store.getJSON(PEN_KEY, {}) : {};
-    state.strokes = (all && all[examId]) ? all[examId] : {};
+    var storageId = examStorageId(examId);
+    state.strokes = (all && all[storageId]) ? all[storageId] : {};
   }
   function savePen() {
     if (!window.Store || !state.examId) return;
     var all = window.Store.getJSON(PEN_KEY, {});
-    all[state.examId] = state.strokes;
+    all[examStorageId(state.examId)] = state.strokes;
     window.Store.setJSON(PEN_KEY, all);
   }
 
@@ -110,20 +140,29 @@
     includedIdx(exam).forEach(function (index) {
       var question = exam.questions[index];
       var selected = state.answers[index];
-      var key = exam.id + ':' + question.n;
-      if (selected === question.ans) {
+      var key = state.courseId === 'social-culture'
+        ? exam.id + ':' + question.n
+        : state.courseId + ':' + exam.id + ':' + question.n;
+      var evaluation = window.AssessmentEngine
+        ? window.AssessmentEngine.evaluateResponse(question, selected)
+        : { status: selected === question.ans ? 'correct' : 'incorrect' };
+      if (evaluation.status === 'correct' || evaluation.status === 'pending-manual') {
         delete records[key];
         return;
       }
       var previous = records[key];
       records[key] = {
         key: key,
+        courseId: state.courseId,
         examId: exam.id,
         examLabel: exam.label,
-        questionNumber: question.n,
+        questionNumber: question.number || question.n,
+        responseType: question.responseType || 'single-choice',
+        response: selected === undefined ? null : selected,
         selectedIndex: selected === undefined ? null : selected,
+        correctAnswer: question.answerKey,
         correctIndex: question.ans,
-        points: question.pts || 2,
+        points: question.points || question.pts || 2,
         attempts: previous ? (Number(previous.attempts) || 1) + 1 : 1,
         lastAttemptAt: now
       };
@@ -145,7 +184,8 @@
   function clearExamWrongNotes() {
     saveExamWrongNotes({});
   }
-  function retryExam(examId) {
+  function retryExam(examId, courseId) {
+    if (courseId) state.courseId = courseId;
     if (examById(examId)) startExam(examId);
   }
 
@@ -160,31 +200,46 @@
     return r;
   }
   function maxScore(e) {
-    return includedIdx(e).reduce(function (s, i) { return s + (e.questions[i].pts || 2); }, 0);
+    return includedIdx(e).reduce(function (s, i) {
+      var question = e.questions[i];
+      return s + (question.points || question.pts || 0);
+    }, 0);
   }
 
   /* ─── 채점 ─── */
   function scoreExam(e) {
     var inc = includedIdx(e);
-    var score = 0, correct = 0, blank = 0;
+    var score = 0, correct = 0, blank = 0, pendingManual = 0;
     inc.forEach(function (i) {
       var q = e.questions[i];
       var mine = state.answers[i];
-      if (mine === null || mine === undefined) { blank++; return; }
-      if (mine === q.ans) { score += (q.pts || 2); correct++; }
+      if (!hasResponse(mine)) { blank++; return; }
+      var evaluation = window.AssessmentEngine
+        ? window.AssessmentEngine.evaluateResponse(q, mine)
+        : { status: mine === q.ans ? 'correct' : 'incorrect', earnedPoints: mine === q.ans ? (q.pts || 2) : 0 };
+      if (evaluation.status === 'pending-manual') { pendingManual++; return; }
+      if (evaluation.status === 'correct') { score += evaluation.earnedPoints; correct++; }
     });
-    return { score: score, max: maxScore(e), correct: correct, total: inc.length, blank: blank };
+    return { score: score, max: maxScore(e), correct: correct, total: inc.length, blank: blank, pendingManual: pendingManual };
   }
 
   /* ─── 등급컷 ─── */
   function cutsFor(e) {
-    if (isPredict(e)) return { cuts: AVG_CUTS, note: '최근 5개년(2022~2026) 15회 평균 등급컷 · 참고용' };
-    /* 수능·모의평가 모두 원점수 등급컷은 주요 입시기관 추정치 종합(kicegg 제공). 평가원 공식 발표는 표준점수 기준임 */
-    return { cuts: e.cuts, note: '주요 입시기관 원점수 추정 종합(kicegg 제공) · 참고용' };
+    var data = courseAssessmentData(state.courseId);
+    var profile = getAssessmentProfile(e);
+    var cuts = e.cuts || (profile && profile.gradeCuts) ||
+      (isPredict(e) && data ? data.averageCuts : null);
+    if (!cuts || typeof cuts !== 'object') {
+      return { cuts: null, note: '이 평가에는 등급컷 데이터가 등록되어 있지 않습니다.' };
+    }
+    if (isPredict(e)) return { cuts: cuts, note: '과목별 연습 평가 기준 등급컷 · 참고용' };
+    /* 사회·문화 기출 등급컷은 주요 입시기관 원점수 추정 종합치입니다. */
+    return { cuts: cuts, note: e.gradeCutNote || '등록된 원점수 등급컷 · 참고용' };
   }
   function gradeOf(score, cuts) {
+    if (!cuts) return null;
     for (var g = 1; g <= 8; g++) {
-      if (score >= cuts[String(g)]) return g;
+      if (cuts[String(g)] !== undefined && score >= cuts[String(g)]) return g;
     }
     return 9;
   }
@@ -199,76 +254,124 @@
   }
 
   /* ─── 시험 목록 ─── */
-  function renderPicker(view) {
+  function renderPicker(view, courseId) {
     stopTimer();
+    state.courseId = courseId || state.courseId || 'social-culture';
     loadHistory();
-    var nodopyo = excludeDopyo();
+    var courseExams = allExams(state.courseId);
+    var predictExams = courseExams.filter(isPredict);
+    var officialExams = courseExams.filter(function (exam) { return !isPredict(exam); });
+    var assessmentData = courseAssessmentData(state.courseId);
+    var hasDiagramItems = courseExams.some(function (exam) {
+      return exam.questions.some(function (question) { return !!question.d; });
+    });
+    var totalOfficialQuestions = officialExams.reduce(function (total, exam) { return total + exam.questions.length; }, 0);
+    var totalPracticeQuestions = predictExams.reduce(function (total, exam) { return total + exam.questions.length; }, 0);
 
     var html = '<div class="hero exam-hero">' +
-      '<span class="hero-kicker">기출 15회분 + 자체 제작 예상 모의고사 3회분</span>' +
-      '<h1>실전 모의고사로<br>실제 시험 감각을 익히세요</h1>' +
-      '<p>2022~2026학년도 수능·6월·9월 평가원 기출 15회분과, 기출 300문항 분석을 바탕으로 제작한 예상 모의고사 3회분. 제한 시간 30분, 점수 채점(배점 2·3점 합산) 후 예상 등급까지 확인합니다.</p>' +
+      '<span class="hero-kicker">과목별 평가 · 기출 및 연습 시험</span>' +
+      '<h1>응시할 평가를<br>선택해 주세요</h1>' +
+      '<p>등록된 평가 ' + courseExams.length + '회 · 총 ' + (totalOfficialQuestions + totalPracticeQuestions) +
+      '문항입니다. 각 평가의 문항 유형과 제한 시간에 맞춰 진행하며, 자동 채점과 수동 채점 상태를 구분합니다.</p>' +
       '</div>';
 
-    /* 도표 제외 설정 */
-    html += '<div class="dopyo-toggle' + (nodopyo ? ' on' : '') + '">' +
-      '<div class="dt-text"><b>도표(표·그래프) 문항 제외</b>' +
-      '<span>표나 그래프 자료가 포함된 문항을 빼고 응시합니다. 채점 만점은 제외 문항 배점을 뺀 점수가 되고, 등급 추정은 참고용으로 제공됩니다.</span></div>' +
-      '<button type="button" class="dt-switch" data-dopyo-toggle role="switch" aria-checked="' + nodopyo + '" aria-label="도표 문항 제외"><span class="dt-knob"></span></button></div>';
-
-    /* 예상 모의고사 */
-    if (typeof PREDICT_EXAMS !== 'undefined') {
-      html += '<div class="section-head predict-head"><h2>수능 예상 모의고사</h2><span>기출 5개년 분석 기반 자체 제작 · 3회분</span></div>';
-      html += '<div class="exam-year-row"><div class="exam-cards predict-cards">';
-      PREDICT_EXAMS.forEach(function (e) {
-        var best = bestRecord(e.id);
-        html += '<button type="button" class="exam-card predict-card" data-start-exam="' + e.id + '">' +
-          '<span class="exam-card-kind">자체 제작</span>' +
-          '<span class="exam-card-title">' + esc2(e.label.replace('수능 예상 ', '')) + '</span>' +
-          '<span class="exam-card-meta">20문항 · 50점 · 30분' +
-          (best ? ' · 최고 <b>' + best.score + '점</b>' : '') + '</span>' +
-          '<span class="predict-sub">' + esc2(e.sub) + '</span></button>';
-      });
-      html += '</div></div>';
-
-      /* 분석 노트 */
-      html += '<details class="predict-note"><summary>이 예상 문제지는 어떻게 만들었나요? (기출 분석 노트)</summary><div class="pn-body">' +
-        '<p>최근 5개년(2022~2026) 평가원 기출 15회, 300문항의 <b>단원별 출제 비중</b>을 분석해 그 분포를 따랐고, 최근 수능에서 반복되는 유형(빈출 개념 조합, 3점 변별력 문항 형식)을 참고해 자체 제작했습니다. 실제 출제 문항과 무관하며 학습용 예상 문제입니다.</p>' +
-        '<div class="unit-freq">';
-      var freqTotal = 0;
-      [1, 2, 3, 4, 5].forEach(function (u) { freqTotal += UNIT_FREQ[u] || 0; });
-      [1, 2, 3, 4, 5].forEach(function (u) {
-        var n = UNIT_FREQ[u] || 0;
-        html += '<div class="uf-row"><span class="uf-name">' + esc2(unitName(u)) + '</span>' +
-          '<span class="uf-bar"><span class="uf-fill" style="width:' + Math.round(n / 83 * 100) + '%"></span></span>' +
-          '<span class="uf-val">' + n + '문항</span></div>';
-      });
-      html += '</div></div></details>';
+    /* 도표 제외 설정은 도표 문항이 있는 과목에만 표시합니다. */
+    if (hasDiagramItems) {
+      html += '<div class="dopyo-toggle' + (excludeDopyo() ? ' on' : '') + '">' +
+        '<div class="dt-text"><b>도표(표·그래프) 문항 제외</b>' +
+        '<span>표나 그래프 자료가 포함된 문항을 빼고 응시합니다. 채점 만점은 제외 문항 배점을 뺀 점수가 됩니다.</span></div>' +
+        '<button type="button" class="dt-switch" data-dopyo-toggle role="switch" aria-checked="' + excludeDopyo() + '" aria-label="도표 문항 제외"><span class="dt-knob"></span></button></div>';
     }
 
-    /* 기출 목록 */
-    html += '<div class="section-head" style="margin-top:var(--space-8)"><h2>평가원 기출 5개년</h2><span>총 15회 · 300문항</span></div>';
-
-    var years = [];
-    allExams().forEach(function (e) { if (e.year && years.indexOf(e.year) === -1) years.push(e.year); });
-    years.sort(function (a, b) { return b - a; });
-
-    years.forEach(function (y) {
-      html += '<div class="exam-year-row"><h3 class="exam-year">' + y + '학년도</h3><div class="exam-cards">';
-      ['suneung', 'june', 'sept'].forEach(function (kind) {
-        var e = EXAMS.filter(function (x) { return x.year === y && x.kind === kind; })[0];
-        if (!e) return;
+    /* 예상 모의고사 */
+    if (predictExams.length) {
+      html += '<div class="section-head predict-head"><h2>연습·과제</h2><span>' + predictExams.length + '회</span></div>';
+      html += '<div class="exam-year-row"><div class="exam-cards predict-cards">';
+      predictExams.forEach(function (e) {
         var best = bestRecord(e.id);
-        html += '<button type="button" class="exam-card" data-start-exam="' + e.id + '">' +
-          '<span class="exam-card-kind">' + (kind === 'suneung' ? '수능' : kind === 'june' ? '6월 모의평가' : '9월 모의평가') + '</span>' +
-          '<span class="exam-card-title">' + esc2(e.label.split('학년도 ')[1] || e.label) + '</span>' +
-          '<span class="exam-card-meta">20문항 · 50점' +
-          (best !== null ? ' · 최고 <b>' + best.score + '점</b>' : '') + '</span></button>';
+        var durationMinutes = Math.round(examDurationSec(e) / 60);
+        html += '<button type="button" class="exam-card predict-card" data-start-exam="' + e.id + '">' +
+          '<span class="exam-card-kind">' + esc2(assessmentProfileLabel(e) || e.assessmentType || '연습 평가') + '</span>' +
+          '<span class="exam-card-title">' + esc2(e.label) + '</span>' +
+          '<span class="exam-card-meta">' + e.questions.length + '문항 · ' + maxScore(e) + '점' +
+          (durationMinutes ? ' · ' + durationMinutes + '분' : '') +
+          (best ? ' · 최고 <b>' + best.score + '점</b>' : '') + '</span>' +
+          (e.sub ? '<span class="predict-sub">' + esc2(e.sub) + '</span>' : '') + '</button>';
       });
       html += '</div></div>';
-    });
 
-    html += '<p class="exam-src-note">출제: 한국교육과정평가원 (공공저작물 제56조에 따라 출처를 표시하고 제공합니다)</p>';
+      /* 사회·문화 자체 제작 예상 문항의 출제 비중 분석 노트 */
+      if (state.courseId === 'social-culture' && assessmentData && assessmentData.unitFrequency) {
+        html += '<details class="predict-note"><summary>이 예상 문제지는 어떻게 만들었나요? (기출 분석 노트)</summary><div class="pn-body">' +
+          '<p>최근 5개년(2022~2026) 평가원 기출 15회, 300문항의 <b>단원별 출제 비중</b>을 분석해 그 분포를 따랐고, 최근 수능에서 반복되는 유형(빈출 개념 조합, 3점 변별력 문항 형식)을 참고해 자체 제작했습니다. 실제 출제 문항과 무관하며 학습용 예상 문제입니다.</p>' +
+          '<div class="unit-freq">';
+        var unitFrequency = assessmentData.unitFrequency;
+        var content = window.StudyCourseRegistry && window.StudyCourseRegistry.getContent(state.courseId);
+        var courseUnits = content && content.units ? content.units : [];
+        courseUnits.forEach(function (unit) {
+          var n = unitFrequency[unit.id] || 0;
+          html += '<div class="uf-row"><span class="uf-name">' + esc2(unitName(unit.id)) + '</span>' +
+            '<span class="uf-bar"><span class="uf-fill" style="width:' + Math.round(n / 83 * 100) + '%"></span></span>' +
+            '<span class="uf-val">' + n + '문항</span></div>';
+        });
+        html += '</div></div></details>';
+      }
+    }
+
+    function assessmentProfileLabel(exam) {
+      var match = window.StudyCourseRegistry && window.StudyCourseRegistry.findAssessmentProfileForExam(exam);
+      return match && match.profile ? match.profile.label : '';
+    }
+
+    /* 등록된 기출·정규 평가 */
+    html += '<div class="section-head" style="margin-top:var(--space-8)"><h2>기출·정규 평가</h2>' +
+      '<span>' + officialExams.length + '회 · ' + totalOfficialQuestions + '문항</span></div>';
+    var years = [];
+    officialExams.forEach(function (exam) {
+      if (exam.year && years.indexOf(exam.year) === -1) years.push(exam.year);
+    });
+    years.sort(function (a, b) { return b - a; });
+
+    function sessionLabel(exam) {
+      if (exam.kind === 'suneung') return '수능';
+      if (exam.kind === 'june') return '6월 모의평가';
+      if (exam.kind === 'sept') return '9월 모의평가';
+      return assessmentProfileLabel(exam) || exam.assessmentType || exam.kind || '정규 평가';
+    }
+    function examCardHtml(exam) {
+      var best = bestRecord(exam.id);
+      var durationMinutes = Math.round(examDurationSec(exam) / 60);
+      return '<button type="button" class="exam-card" data-start-exam="' + esc2(exam.id) + '">' +
+        '<span class="exam-card-kind">' + esc2(sessionLabel(exam)) + '</span>' +
+        '<span class="exam-card-title">' + esc2(exam.label || exam.title || exam.id) + '</span>' +
+        '<span class="exam-card-meta">' + exam.questions.length + '문항 · ' + maxScore(exam) + '점' +
+        (durationMinutes ? ' · ' + durationMinutes + '분' : '') +
+        (best !== null ? ' · 최고 <b>' + best.score + '점</b>' : '') + '</span></button>';
+    }
+
+    if (years.length) {
+      years.forEach(function (year) {
+        html += '<div class="exam-year-row"><h3 class="exam-year">' + year + '학년도</h3><div class="exam-cards">';
+        officialExams.filter(function (exam) { return exam.year === year; })
+          .forEach(function (exam) { html += examCardHtml(exam); });
+        html += '</div></div>';
+      });
+      var noYear = officialExams.filter(function (exam) { return !exam.year; });
+      if (noYear.length) {
+        html += '<div class="exam-year-row"><div class="exam-cards">';
+        noYear.forEach(function (exam) { html += examCardHtml(exam); });
+        html += '</div></div>';
+      }
+    } else if (officialExams.length) {
+      html += '<div class="exam-year-row"><div class="exam-cards">';
+      officialExams.forEach(function (exam) { html += examCardHtml(exam); });
+      html += '</div></div>';
+    } else {
+      html += '<div class="empty-state"><strong>등록된 기출·정규 평가가 없습니다</strong>연습 평가를 이용하거나 콘텐츠가 준비된 뒤 다시 확인해 주세요.</div>';
+    }
+
+    html += '<p class="exam-src-note">' + esc2((window.StudyCourseRegistry && window.StudyCourseRegistry.get(state.courseId) || {}).title || '과목') +
+      ' 평가 데이터는 과목별 콘텐츠 모듈에서 불러옵니다.</p>';
     if (window.Store && !window.Store.persistent) {
       html += '<p class="exam-src-note">이 브라우저에서는 기록 저장이 제한되어 페이지를 닫으면 응시 기록이 사라질 수 있습니다.</p>';
     }
@@ -358,6 +461,128 @@
     return tools;
   }
 
+  function questionPromptHtml(question) {
+    var prompt = question.prompt !== undefined ? question.prompt : question.q;
+    if (typeof prompt === 'string' && prompt.length) {
+      return '<div class="pq-q">' + (question.promptFormat === 'text' ? esc2(prompt) : prompt) + '</div>';
+    }
+    if (prompt && typeof prompt === 'object') {
+      var promptContent = prompt.content == null ? '' : String(prompt.content);
+      var promptFormat = prompt.format || question.promptFormat || 'text';
+      return '<div class="pq-q">' + (promptFormat === 'html' ? promptContent : esc2(promptContent)) + '</div>';
+    }
+    return '';
+  }
+
+  function questionStimulusHtml(question, exam, index) {
+    var promptHtml = questionPromptHtml(question);
+    var stimulus = question.stimulus;
+    if (!stimulus) {
+      if (promptHtml) return promptHtml;
+      return '<img class="exam-qimg" id="examQImg" src="' + imgSrc(exam.id, index + 1) +
+        '" alt="' + esc2(exam.label) + ' ' + (index + 1) + '번 문항" loading="eager" />';
+    }
+    var type = stimulus.type || 'html';
+    var contentValue = stimulus.content == null ? '' : stimulus.content;
+    var content = typeof contentValue === 'string' ? contentValue : '';
+    var assets = Array.isArray(stimulus.assets) ? stimulus.assets : [];
+    var src = stimulus.src || stimulus.url || assets[0] || '';
+    var body = '';
+
+    if (type === 'image') {
+      body = assets.length
+        ? assets.map(function (asset, assetIndex) {
+            var url = typeof asset === 'string' ? asset : (asset.url || asset.src || '');
+            var alt = typeof asset === 'object' && asset.alt ? asset.alt : (question.prompt || exam.label);
+            return '<img class="exam-qimg" ' + (assetIndex === 0 ? 'id="examQImg" ' : '') +
+              'src="' + esc2(url) + '" alt="' + esc2(alt) + '" loading="eager" />';
+          }).join('')
+        : '<img class="exam-qimg" id="examQImg" src="' + esc2(src) + '" alt="' +
+          esc2(question.prompt || exam.label) + '" loading="eager" />';
+    } else if (type === 'audio') {
+      body = '<audio class="exam-response-audio" controls preload="metadata" src="' + esc2(src) + '">' +
+        '오디오를 재생할 수 없습니다.</audio>';
+    } else if (type === 'code') {
+      body = '<pre class="exam-stimulus-code"><code>' + esc2(content || JSON.stringify(contentValue, null, 2)) + '</code></pre>';
+    } else if (type === 'text') {
+      body = '<div class="exam-stimulus-text">' + esc2(content || contentValue) + '</div>';
+    } else if (type === 'table' && contentValue && typeof contentValue === 'object') {
+      var headers = contentValue.headers || contentValue.columns || [];
+      var rows = contentValue.rows || [];
+      body = '<div class="exam-stimulus-table"><table><thead><tr>' +
+        headers.map(function (header) { return '<th>' + esc2(header) + '</th>'; }).join('') +
+        '</tr></thead><tbody>' + rows.map(function (row) {
+          return '<tr>' + (Array.isArray(row) ? row : []).map(function (cell) {
+            return '<td>' + esc2(cell) + '</td>';
+          }).join('') + '</tr>';
+        }).join('') + '</tbody></table></div>';
+    } else if (type === 'chart' && contentValue && typeof contentValue === 'object') {
+      var chartText = contentValue.description || JSON.stringify(contentValue, null, 2);
+      body = '<pre class="exam-stimulus-code">' + esc2(chartText) + '</pre>';
+    } else if (type === 'math') {
+      var mathContent = content || (contentValue && contentValue.latex) || '';
+      body = '<div class="exam-stimulus-math">' + mathContent + '</div>';
+    } else {
+      body = '<div class="exam-stimulus-' + esc2(type) + '">' + content + '</div>';
+    }
+
+    return promptHtml + body;
+  }
+
+  function renderResponseControl(question, index) {
+    var responseType = question.responseType || 'single-choice';
+    var value = state.answers[index];
+    var options = question.options || [];
+    var useTextLayout = !!(question.q || (question.prompt && (typeof question.prompt === 'object' || String(question.prompt).length)));
+    if (responseType === 'single-choice' || responseType === 'multiple-select') {
+      if (!options.length && Array.isArray(question.c)) {
+        options = question.c.map(function (choice, choiceIndex) {
+          return { id: 'option-' + choiceIndex, content: choice };
+        });
+      }
+      var multiple = responseType === 'multiple-select';
+      var selected = Array.isArray(value) ? value : (value === null || value === undefined ? [] : [value]);
+      return '<div class="' + (useTextLayout ? 'pq-choices' : 'omr') + '" role="group" aria-label="' +
+        (multiple ? '복수 답안 선택' : '답안 선택') + '">' +
+        options.map(function (option, optionIndex) {
+          var marked = multiple ? selected.indexOf(optionIndex) !== -1 : value === optionIndex;
+          var label = CHOICE_LABELS[optionIndex] || String(optionIndex + 1);
+          var content = option.content !== undefined ? option.content : option.text || '';
+          if (useTextLayout) {
+            return '<button type="button" class="pq-choice' + (marked ? ' marked' : '') + '" ' +
+              (multiple ? 'data-multi-choice="' + optionIndex + '"' : 'data-omr="' + optionIndex + '"') +
+              ' aria-pressed="' + marked + '"><span class="pq-clab">' + label + '</span>' +
+              '<span class="pq-ctext">' + content + '</span></button>';
+          }
+          return '<button type="button" class="omr-btn' + (marked ? ' marked' : '') + '" ' +
+            (multiple ? 'data-multi-choice="' + optionIndex + '"' : 'data-omr="' + optionIndex + '"') +
+            ' aria-pressed="' + marked + '"><span class="omr-num">' + label + '</span>' +
+            '<span class="omr-state">' + (marked ? '선택됨' : '') + '</span></button>';
+        }).join('') + '</div>' +
+        (multiple ? '<p class="exam-response-hint">정답으로 판단되는 항목을 모두 선택해 주세요.</p>' : '');
+    }
+    if (responseType === 'short-answer' || responseType === 'numeric') {
+      var inputType = responseType === 'numeric' ? 'number' : 'text';
+      return '<label class="exam-response-field"><span>' +
+        (responseType === 'numeric' ? '수치 답안' : '단답형 답안') + '</span>' +
+        '<input class="exam-response-input" type="' + inputType + '"' +
+        (responseType === 'numeric' ? ' step="any" inputmode="decimal"' : ' autocomplete="off"') +
+        ' data-response-input value="' + esc2(value == null ? '' : value) +
+        '" aria-label="' + (responseType === 'numeric' ? '수치 답안 입력' : '단답형 답안 입력') + '" /></label>';
+    }
+    if (responseType === 'essay' || responseType === 'code') {
+      return '<label class="exam-response-field"><span>' +
+        (responseType === 'code' ? '코드 답안' : '서술형 답안') + '</span>' +
+        '<textarea class="exam-response-textarea' + (responseType === 'code' ? ' code' : '') +
+        '" data-response-input rows="' + (responseType === 'code' ? '12' : '7') + '"' +
+        (responseType === 'code' ? ' spellcheck="false"' : '') +
+        ' aria-label="' + (responseType === 'code' ? '코드 답안 입력' : '서술형 답안 입력') + '">' +
+        esc2(value == null ? '' : value) + '</textarea></label>' +
+        '<p class="exam-response-hint">제출 후 채점 기준에 따라 별도 채점이 필요합니다.</p>';
+    }
+    return '<p class="exam-response-hint">지원하지 않는 응답 유형입니다: ' + esc2(responseType) + '</p>';
+  }
+
   function renderRun(view) {
     var e = examById(state.examId);
     if (!e) { if (window.AppUI) window.AppUI.show('exam'); return; }
@@ -367,6 +592,7 @@
     var n = state.idx + 1;
     var predict = isPredict(e);
     var q = e.questions[state.idx];
+    var hasTextPrompt = !!(q.q || (q.prompt && (typeof q.prompt === 'object' || String(q.prompt).length)));
 
     var html = '<div class="exam-run-top">' +
       '<div class="exam-run-info"><span class="quiz-tag exam-tag">' + esc2(e.label) + '</span>' +
@@ -378,33 +604,17 @@
 
     html += penBarHtml();
 
-    if (predict) {
-      /* 텍스트 문항 (예상 모의고사) */
-      html += '<div class="exam-qcard predict-card2">' +
-        '<div class="pq-head"><span class="pq-num">' + q.n + '번</span>' +
-        '<span class="pq-badje">' + (q.pts || 2) + '점</span>' +
-        (q.d ? '<span class="pq-badje dopyo">도표</span>' : '') + '</div>' +
-        '<div class="pq-q">' + q.q + '</div>' +
-        '<div class="pq-choices" role="group" aria-label="답안 선택">' +
-        q.c.map(function (c, i) {
-          var marked = state.answers[state.idx] === i;
-          return '<button type="button" class="pq-choice' + (marked ? ' marked' : '') + '" data-omr="' + i + '" aria-pressed="' + marked + '">' +
-            '<span class="pq-clab">' + CHOICE_LABELS[i] + '</span><span class="pq-ctext">' + c + '</span></button>';
-        }).join('') + '</div>' +
-        '</div>';
-    } else {
-      /* 이미지 문항 (기출) */
-      html += '<div class="exam-qcard">' +
-        '<div class="exam-qwrap">' +
-        '<img class="exam-qimg" id="examQImg" src="' + imgSrc(e.id, n) + '" alt="' + esc2(e.label) + ' ' + n + '번 문항" loading="eager" />' +
-        '</div>' +
-        '<div class="omr" role="group" aria-label="답안 선택">' +
-        CHOICE_LABELS.map(function (c, i) {
-          var marked = state.answers[state.idx] === i;
-          return '<button type="button" class="omr-btn' + (marked ? ' marked' : '') + '" data-omr="' + i + '" aria-pressed="' + marked + '">' +
-            '<span class="omr-num">' + c + '</span><span class="omr-state">' + (marked ? '선택됨' : '') + '</span></button>';
-        }).join('') + '</div></div>';
-    }
+    var responseType = q.responseType || 'single-choice';
+    var questionClass = predict || hasTextPrompt ? 'exam-qcard predict-card2' : 'exam-qcard';
+    html += '<div class="' + questionClass + '">' +
+      '<div class="' + (predict || hasTextPrompt ? 'pq-head' : 'exam-question-head') + '">' +
+      '<span class="' + (predict || hasTextPrompt ? 'pq-num' : 'exam-question-number') + '">' + (q.number || q.n || n) + '번</span>' +
+      '<span class="' + (predict || hasTextPrompt ? 'pq-badje' : 'exam-question-points') + '">' + (q.points || q.pts || 0) + '점</span>' +
+      (q.d ? '<span class="pq-badje dopyo">도표</span>' : '') +
+      '<span class="exam-question-type">' + esc2(responseType) + '</span></div>' +
+      '<div class="exam-qwrap">' + questionStimulusHtml(q, e, state.idx) + '</div>' +
+      renderResponseControl(q, state.idx) +
+      '</div>';
 
     var lastQ = inc[inc.length - 1] === state.idx;
     html += '<div class="exam-run-nav">' +
@@ -413,7 +623,7 @@
       e.questions.map(function (qq, i) {
         var excluded = inc.indexOf(i) === -1;
         var cur = i === state.idx;
-        var done = !excluded && state.answers[i] !== null && state.answers[i] !== undefined;
+        var done = !excluded && hasResponse(state.answers[i]);
         return '<button type="button" class="omr-cell' + (cur ? ' cur' : '') + (done ? ' done' : '') + (excluded ? ' excl' : '') + '"' +
           (excluded ? ' disabled title="도표 문항 제외됨"' : ' data-goto="' + i + '"') + '>' + (i + 1) + '</button>';
       }).join('') + '</div>' +
@@ -423,7 +633,7 @@
       '</div>';
 
     if (lastQ) {
-      var unanswered = inc.filter(function (i) { return state.answers[i] === null || state.answers[i] === undefined; }).length;
+      var unanswered = inc.filter(function (i) { return !hasResponse(state.answers[i]); }).length;
       if (unanswered === 0) {
         html += '<p class="exam-submit-hint">모든 문항에 답안을 표기했습니다. 준비되면 시험을 종료하세요.</p>';
       } else {
@@ -440,6 +650,23 @@
         state.answers[state.idx] = parseInt(b.dataset.omr, 10);
         renderRun(view);
       });
+    });
+    view.querySelectorAll('[data-multi-choice]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var selected = Array.isArray(state.answers[state.idx]) ? state.answers[state.idx].slice() : [];
+        var optionIndex = parseInt(b.dataset.multiChoice, 10);
+        var existing = selected.indexOf(optionIndex);
+        if (existing === -1) selected.push(optionIndex);
+        else selected.splice(existing, 1);
+        state.answers[state.idx] = selected;
+        renderRun(view);
+      });
+    });
+    var responseInput = view.querySelector('[data-response-input]');
+    if (responseInput) responseInput.addEventListener('input', function () {
+      state.answers[state.idx] = responseInput.value;
+      var cell = view.querySelector('[data-goto="' + state.idx + '"]');
+      if (cell) cell.classList.toggle('done', hasResponse(responseInput.value));
     });
     /* 문항 이동 (도표 제외 문항은 건너뜀) */
     var prev = view.querySelector('[data-exam-prev]');
@@ -465,11 +692,17 @@
     bindPen(view, state.idx);
   }
 
+  function hasResponse(value) {
+    if (value === null || value === undefined || value === '') return false;
+    if (Array.isArray(value)) return value.length > 0;
+    return true;
+  }
+
   function submitExam(auto) {
     if (state.submitted) return;
     var e = examById(state.examId);
     var inc = includedIdx(e);
-    var unanswered = inc.filter(function (i) { return state.answers[i] === null || state.answers[i] === undefined; }).length;
+    var unanswered = inc.filter(function (i) { return !hasResponse(state.answers[i]); }).length;
     if (!auto && unanswered > 0) {
       if (!window.confirm(unanswered + '문항이 미표기 상태입니다. 그대로 제출할까요?')) return;
     }
@@ -479,11 +712,80 @@
     updateExamWrongNotes(e);
     var r = scoreExam(e);
     /* 학습 게임(지식의 탑) 성장 연동 */
-    if (window.GameUI) window.GameUI.reportExam({ score: r.score, max: r.max, correct: r.correct, label: e.label });
+    if (window.GameUI && !r.pendingManual) window.GameUI.reportExam({ score: r.score, max: r.max, correct: r.correct, label: e.label });
     loadHistory();
-    state.history.push({ id: state.examId, score: r.score, max: r.max, correct: r.correct, total: r.total, at: Date.now() });
+    state.history.push({ courseId: state.courseId, id: state.examId, score: r.score, max: r.max, correct: r.correct, total: r.total, pendingManual: r.pendingManual || 0, at: Date.now() });
     saveHistory();
     if (window.AppUI) window.AppUI.show('examresult');
+  }
+
+  function choiceIndex(value, question) {
+    if (typeof value === 'number' && Number.isInteger(value)) return value;
+    if (typeof value === 'string') {
+      var numeric = /^\\d+$/.test(value) ? Number(value) : NaN;
+      if (Number.isInteger(numeric)) return numeric;
+      var options = question.options || [];
+      for (var i = 0; i < options.length; i += 1) {
+        if (options[i].id === value) return i;
+      }
+    }
+    return -1;
+  }
+
+  function formattedResponse(question, response) {
+    if (!hasResponse(response)) return '미응답';
+    var type = question.responseType || 'single-choice';
+    if (type === 'single-choice') {
+      var index = choiceIndex(response, question);
+      return index >= 0 ? (CHOICE_LABELS[index] || String(index + 1)) : String(response);
+    }
+    if (type === 'multiple-select') {
+      var values = Array.isArray(response) ? response : [response];
+      return values.map(function (value) {
+        var index = choiceIndex(value, question);
+        return index >= 0 ? (CHOICE_LABELS[index] || String(index + 1)) : String(value);
+      }).join(', ');
+    }
+    return String(response);
+  }
+
+  function formattedAnswer(question) {
+    var type = question.responseType || 'single-choice';
+    var answer = question.answerKey;
+    if (type === 'single-choice') {
+      var index = choiceIndex(answer, question);
+      return index >= 0 ? (CHOICE_LABELS[index] || String(index + 1)) : '정답 미설정';
+    }
+    if (type === 'multiple-select') {
+      return (Array.isArray(answer) ? answer : []).map(function (value) {
+        var index = choiceIndex(value, question);
+        return index >= 0 ? (CHOICE_LABELS[index] || String(index + 1)) : String(value);
+      }).join(', ');
+    }
+    if (type === 'short-answer') return (Array.isArray(answer) ? answer : [answer]).filter(function (v) { return v != null; }).join(' / ');
+    if (type === 'numeric') {
+      if (answer && typeof answer === 'object') return String(answer.value) + (answer.tolerance ? ' (허용 오차 ±' + answer.tolerance + ')' : '');
+      return String(answer);
+    }
+    if (type === 'essay' || type === 'code') return '수동 채점 기준';
+    return '—';
+  }
+
+  function reviewChoiceHtml(question, response) {
+    var type = question.responseType || 'single-choice';
+    if (type !== 'single-choice' && type !== 'multiple-select') return '';
+    var options = question.options || [];
+    var selected = Array.isArray(response) ? response : (response == null ? [] : [response]);
+    var correct = Array.isArray(question.answerKey) ? question.answerKey : [question.answerKey];
+    return '<div class="pq-choices review">' + options.map(function (option, index) {
+      var wasSelected = selected.some(function (value) { return choiceIndex(value, question) === index; });
+      var isCorrect = correct.some(function (value) { return choiceIndex(value, question) === index; });
+      var content = option.content || '';
+      return '<div class="pq-choice' + (isCorrect ? ' correct' : '') +
+        (wasSelected && !isCorrect ? ' wrong' : '') + '">' +
+        '<span class="pq-clab">' + (CHOICE_LABELS[index] || String(index + 1)) + '</span>' +
+        '<span class="pq-ctext">' + content + '</span></div>';
+    }).join('') + '</div>';
   }
 
   /* ─── 결과 ─── */
@@ -495,39 +797,50 @@
     var inc = includedIdx(e);
     var nodopyo = excludeDopyo() && e.questions.some(function (q) { return q.d; });
     var cf = cutsFor(e);
+    var assessmentProfile = getAssessmentProfile(e);
+    var gradeReferenceMax = Number(assessmentProfile && assessmentProfile.maxScore) || 50;
+    var hasGradeCuts = !!(cf.cuts && cf.cuts['1'] !== undefined);
 
     /* 등급 산출 */
     var gradeScore = r.score;
     var scaledNote = '';
-    if (nodopyo && r.max > 0 && r.max !== 50) {
-      gradeScore = Math.round(r.score * 50 / r.max * 10) / 10;
-      scaledNote = '도표 문항 제외로 환산 점수(' + gradeScore + '점/50점) 기준 추정이므로 참고용입니다.';
+    if (nodopyo && r.max > 0 && r.max !== gradeReferenceMax) {
+      gradeScore = Math.round(r.score * gradeReferenceMax / r.max * 10) / 10;
+      scaledNote = '도표 문항 제외로 환산 점수(' + gradeScore + '점/' + gradeReferenceMax + '점) 기준 추정이므로 참고용입니다.';
     }
-    var myGrade = gradeOf(gradeScore, cf.cuts);
+    var myGrade = r.pendingManual ? '채점 대기' : (hasGradeCuts ? gradeOf(gradeScore, cf.cuts) : '미제공');
 
     var html = '<div class="result-hero exam-result-hero">' +
       '<div class="result-score">' + r.score + '<small>/' + r.max + '점</small></div>' +
       '<div class="result-msg">' + examResultMsg(pct) + '</div>' +
-      '<div class="result-sub">' + esc2(e.label) + ' · 정답 ' + r.correct + '문항 / ' + r.total + '문항' + (r.blank ? ' · 미응답 ' + r.blank + '문항' : '') + '</div>' +
-      '<div class="grade-badge">예상 등급 <b>' + myGrade + '등급</b>' + (nodopyo ? ' <span class="grade-note">(참고)</span>' : '') + '</div>' +
+      '<div class="result-sub">' + esc2(e.label) + ' · 정답 ' + r.correct + '문항 / ' + r.total + '문항' +
+      (r.blank ? ' · 미응답 ' + r.blank + '문항' : '') +
+      (r.pendingManual ? ' · 수동 채점 대기 ' + r.pendingManual + '문항' : '') + '</div>' +
+      (r.pendingManual
+        ? '<div class="grade-badge">수동 채점 필요 <b>' + r.pendingManual + '문항</b></div>'
+        : (hasGradeCuts
+          ? '<div class="grade-badge">예상 등급 <b>' + myGrade + '등급</b>' + (nodopyo ? ' <span class="grade-note">(참고)</span>' : '') + '</div>'
+          : '<div class="grade-badge">등급컷 미제공</div>')) +
       '<div class="result-actions">' +
       '<button class="btn btn-primary" data-exam-again type="button">같은 시험 다시 풀기</button>' +
       '<button class="btn btn-ghost" data-export-ai type="button">AI 분석 보고서 다운로드</button>' +
       '<button class="btn btn-ghost" data-exam-list type="button">시험지 목록으로</button>' +
       '</div></div>';
 
-    /* 등급컷 표 */
-    html += '<div class="q-card cut-card"><h3 class="cut-title">원점수 등급컷</h3>' +
-      (scaledNote ? '<p class="cut-warn">' + scaledNote + '</p>' : '') +
-      '<table class="cut-table"><thead><tr><th>등급</th>';
-    for (var g = 1; g <= 8; g++) html += '<th>' + g + '</th>';
-    html += '<th>9등급</th></tr></thead><tbody><tr><th>원점수</th>';
-    for (g = 1; g <= 8; g++) {
-      html += '<td class="' + (myGrade === g ? 'mine' : '') + '">' + cf.cuts[String(g)] + '점 이상</td>';
+    /* 등급컷 표 — 수동 채점이 남아 있으면 점수 확정 전이므로 표시하지 않습니다. */
+    if (!r.pendingManual && hasGradeCuts) {
+      html += '<div class="q-card cut-card"><h3 class="cut-title">원점수 등급컷</h3>' +
+        (scaledNote ? '<p class="cut-warn">' + scaledNote + '</p>' : '') +
+        '<table class="cut-table"><thead><tr><th>등급</th>';
+      for (var g = 1; g <= 8; g++) html += '<th>' + g + '</th>';
+      html += '<th>9등급</th></tr></thead><tbody><tr><th>원점수</th>';
+      for (g = 1; g <= 8; g++) {
+        html += '<td class="' + (myGrade === g ? 'mine' : '') + '">' + cf.cuts[String(g)] + '점 이상</td>';
+      }
+      html += '<td class="' + (myGrade === 9 ? 'mine' : '') + '">—</td></tr></tbody></table>' +
+        '<p class="cut-src">' + cf.note + ' · 내 점수: ' + gradeScore + '점 → <b>' + myGrade + '등급</b></p>' +
+        '<p class="cut-src dim">등급컷은 시험마다 난이도에 따라 달라지며, 위 수치는 해당 회차 실제(또는 추정) 값입니다.</p></div>';
     }
-    html += '<td class="' + (myGrade === 9 ? 'mine' : '') + '">—</td></tr></tbody></table>' +
-      '<p class="cut-src">' + cf.note + ' · 내 점수: ' + gradeScore + '점 → <b>' + myGrade + '등급</b></p>' +
-      '<p class="cut-src dim">등급컷은 시험마다 난이도에 따라 달라지며, 위 수치는 해당 회차 실제(또는 추정) 값입니다.</p></div>';
 
     /* 문항별 결과 */
     html += '<div class="q-card"><h3 style="font-size:var(--text-lg);font-weight:800;margin-bottom:var(--space-4)">문항별 결과</h3>' +
@@ -535,15 +848,19 @@
     e.questions.forEach(function (q, i) {
       var excluded = inc.indexOf(i) === -1;
       var mine = state.answers[i];
-      var ok = !excluded && mine === q.ans;
+      var evaluation = !excluded && window.AssessmentEngine
+        ? window.AssessmentEngine.evaluateResponse(q, mine)
+        : { status: mine === q.ans ? 'correct' : (hasResponse(mine) ? 'incorrect' : 'unanswered') };
+      var ok = !excluded && evaluation.status === 'correct';
+      var verdict = evaluation.status === 'pending-manual' ? '채점 대기' : (ok ? '정답' : (evaluation.status === 'unanswered' ? '미응답' : '오답'));
       if (excluded) {
         html += '<tr class="excl-row"><td>' + (i + 1) + '번</td><td>' + (q.pts || 2) + '점</td>' +
           '<td colspan="2">도표 문항 제외</td><td class="dim2">—</td></tr>';
       } else {
-        html += '<tr><td>' + (i + 1) + '번</td><td>' + (q.pts || 2) + '점</td>' +
-          '<td>' + (mine === null || mine === undefined ? '<span class="no">미응답</span>' : CHOICE_LABELS[mine]) + '</td>' +
-          '<td>' + CHOICE_LABELS[q.ans] + '</td>' +
-          '<td class="' + (ok ? 'ok' : 'no') + '">' + (ok ? '정답' : '오답') + '</td></tr>';
+        html += '<tr><td>' + (i + 1) + '번</td><td>' + (q.points || q.pts || 0) + '점</td>' +
+          '<td>' + esc2(formattedResponse(q, mine)) + '</td>' +
+          '<td>' + esc2(formattedAnswer(q)) + '</td>' +
+          '<td class="' + (ok ? 'ok' : (evaluation.status === 'pending-manual' ? 'dim2' : 'no')) + '">' + verdict + '</td></tr>';
       }
     });
     html += '</tbody></table></div>';
@@ -554,27 +871,23 @@
     e.questions.forEach(function (q, i) {
       var excluded = inc.indexOf(i) === -1;
       var mine = state.answers[i];
-      var ok = !excluded && mine === q.ans;
-      var verdict = excluded ? '제외' : (ok ? '정답' : (mine === null || mine === undefined ? '미응답' : '오답'));
+      var evaluation = !excluded && window.AssessmentEngine
+        ? window.AssessmentEngine.evaluateResponse(q, mine)
+        : { status: mine === q.ans ? 'correct' : (hasResponse(mine) ? 'incorrect' : 'unanswered') };
+      var ok = !excluded && evaluation.status === 'correct';
+      var verdict = excluded ? '제외' : (evaluation.status === 'pending-manual' ? '채점 대기' :
+        (ok ? '정답' : (evaluation.status === 'unanswered' ? '미응답' : '오답')));
       html += '<details class="exam-review' + (!ok && !excluded ? ' wrong-q' : '') + (excluded ? ' excl-q' : '') + '">' +
         '<summary><span class="er-num">' + (i + 1) + '번</span>' +
         '<span class="er-verdict ' + (ok ? 'ok' : 'no') + (excluded ? ' dim2' : '') + '">' + verdict + '</span>' +
-        '<span class="er-ans">' + (excluded ? '도표 문항 제외' : '내 답 ' + (mine === null || mine === undefined ? '—' : CHOICE_LABELS[mine]) + ' · 정답 ' + CHOICE_LABELS[q.ans] + ' · ' + (q.pts || 2) + '점') + '</span></summary>';
-      if (isPredict(e)) {
-        html += '<div class="er-body">' +
-          '<div class="pq-head"><span class="pq-num">' + q.n + '번</span><span class="pq-badje">' + (q.pts || 2) + '점</span>' +
-          '<span class="pq-badje unit">' + esc2(unitName(q.u)) + '</span></div>' +
-          '<div class="pq-q">' + q.q + '</div>' +
-          '<div class="pq-choices review">' + q.c.map(function (c, ci) {
-            var cls = ci === q.ans ? 'pq-choice correct' : (ci === mine ? 'pq-choice wrong' : 'pq-choice');
-            return '<div class="' + cls + '"><span class="pq-clab">' + CHOICE_LABELS[ci] + '</span><span class="pq-ctext">' + c + '</span></div>';
-          }).join('') + '</div>' +
-          (q.e ? '<div class="pq-expl"><b>해설</b> ' + q.e + '</div>' : '') +
-          '</div>';
-      } else {
-        html += '<div class="er-body"><img class="exam-qimg" src="' + imgSrc(e.id, q.n) + '" alt="' + (i + 1) + '번 문항" loading="lazy" />' +
-          '<p class="er-note">정답: <b>' + CHOICE_LABELS[q.ans] + '</b> (' + (q.pts || 2) + '점)' + (excluded ? ' · 이 회차에서 제외된 문항입니다' : (ok ? '' : ' · 내 답안: ' + (mine === null || mine === undefined ? '미응답' : CHOICE_LABELS[mine]))) + '</p></div>';
-      }
+        '<span class="er-ans">' + (excluded ? '도표 문항 제외' : '내 답 ' + esc2(formattedResponse(q, mine)) +
+          ' · 정답 ' + esc2(formattedAnswer(q)) + ' · ' + (q.points || q.pts || 0) + '점') + '</span></summary>';
+      html += '<div class="er-body">' +
+        questionStimulusHtml(q, e, i) +
+        reviewChoiceHtml(q, mine) +
+        (q.explanation ? '<div class="pq-expl"><b>해설</b> ' + q.explanation + '</div>' : '') +
+        (evaluation.status === 'pending-manual' ? '<p class="exam-response-hint">이 문항은 제출 후 별도 채점이 필요합니다.</p>' : '') +
+        '</div>';
       html += '</details>';
     });
     html += '</div>';
@@ -664,14 +977,21 @@
         var question = exam.questions[i];
         var selected = state.answers[i];
         var included = includedIdx(exam).indexOf(i) !== -1;
-        var correct = included && selected === question.ans;
+        var evaluation = window.AssessmentEngine.evaluateResponse(question, selected);
+        var correct = included && evaluation.status === 'correct';
         var strokes = Array.isArray(state.strokes[i]) ? state.strokes[i] : [];
+        var stimulus = question.stimulus || null;
+        var stimulusAssets = stimulus && Array.isArray(stimulus.assets) ? stimulus.assets : [];
+        var imagePath = stimulus && stimulus.type === 'image'
+          ? (stimulus.src || stimulus.url || stimulusAssets[0] || '')
+          : '';
+        if (imagePath && typeof imagePath === 'object') imagePath = imagePath.url || imagePath.src || '';
         var imageData = null;
         var overlay = '';
         var imageEmbedded = false;
 
-        if (!isPredict(exam)) {
-          var response = await fetch(imgSrc(exam.id, question.n), { cache: 'force-cache' });
+        if (imagePath) {
+          var response = await fetch(imagePath, { cache: 'force-cache' });
           if (!response.ok) throw new Error((question.n) + '번 문제 이미지를 불러오지 못했습니다.');
           imageData = await readBlobAsDataUrl(await response.blob());
           var dimensions = await readImageSize(imageData);
@@ -680,46 +1000,50 @@
         }
 
         results.push({
-          number: question.n,
-          points: question.pts || 2,
+          number: question.number || question.n,
+          itemType: question.itemType,
+          responseType: question.responseType,
+          points: question.points || question.pts || 0,
           included: included,
-          selectedIndex: selected === undefined ? null : selected,
-          selectedOption: selected === null || selected === undefined ? null : CHOICE_LABELS[selected],
-          correctIndex: question.ans,
-          correctOption: CHOICE_LABELS[question.ans],
-          result: !included ? 'excluded' : (selected === null || selected === undefined ? 'unanswered' : (correct ? 'correct' : 'incorrect')),
+          response: selected === undefined ? null : selected,
+          selectedResponse: formattedResponse(question, selected),
+          selectedIndex: typeof selected === 'number' ? selected : null,
+          selectedOption: typeof selected === 'number' ? (CHOICE_LABELS[selected] || null) : null,
+          correctIndex: typeof question.answerKey === 'number' ? question.answerKey : null,
+          correctOption: typeof question.answerKey === 'number' ? (CHOICE_LABELS[question.answerKey] || null) : null,
+          answerKey: question.answerKey,
+          correctAnswer: formattedAnswer(question),
+          result: !included ? 'excluded' : evaluation.status,
           handwriting: strokes,
           handwritingOverlayIncluded: !!overlay,
           imageEmbedded: imageEmbedded,
-          prompt: isPredict(exam) ? question.q : null,
-          choices: isPredict(exam) ? question.c : null,
-          explanation: isPredict(exam) ? (question.e || null) : null,
-          conceptUnit: isPredict(exam) ? (question.u || null) : null
+          stimulus: stimulus,
+          prompt: question.prompt || question.q || null,
+          choices: question.options || question.c || null,
+          explanation: question.explanation || question.e || null,
+          conceptUnit: question.u || null
         });
 
-        var questionBody;
-        if (isPredict(exam)) {
-          questionBody = '<div class="prompt">' + (question.q || '') + '</div>' +
-            '<ol class="choices">' + (question.c || []).map(function (choice, choiceIndex) {
-              var choiceClasses = [];
-              if (choiceIndex === question.ans) choiceClasses.push('correct');
-              if (choiceIndex === selected) choiceClasses.push('selected');
-              return '<li' + (choiceClasses.length ? ' class="' + choiceClasses.join(' ') + '"' : '') +
-                '>' + choice + '</li>';
-            }).join('') + '</ol>' +
-            (question.e ? '<div class="explanation"><b>기존 해설</b><p>' + question.e + '</p></div>' : '');
-        } else {
-          questionBody = '<div class="sheet"><img src="' + imageData + '" alt="' + question.n +
-            '번 문제 원본"/>' + overlay + '</div>';
-          if (strokes.length && !overlay) {
-            questionBody += '<p class="note">필기는 벡터 좌표로 포함했지만, 이 획은 작성 당시 문제 이미지 좌표 정보가 없어 이미지 위에 겹쳐 표시하지 못했습니다.</p>';
-          }
+        var questionBody = imageData
+          ? '<div class="sheet"><img src="' + imageData + '" alt="' + question.n +
+            '번 문제 원본"/>' + overlay + '</div>'
+          : questionStimulusHtml(question, exam, i);
+        questionBody += reviewChoiceHtml(question, selected);
+        if (strokes.length && !overlay && imagePath) {
+          questionBody += '<p class="note">필기는 벡터 좌표로 포함했지만, 이 획은 작성 당시 문제 이미지 좌표 정보가 없어 이미지 위에 겹쳐 표시하지 못했습니다.</p>';
         }
-        var selectedText = selected === null || selected === undefined ? '미응답' : CHOICE_LABELS[selected];
-        var verdict = !included ? '도표 제외' : (selected === null || selected === undefined ? '미응답' : (correct ? '정답' : '오답'));
-        cards.push('<section class="question"><h2>' + question.n + '번 · ' + verdict +
-          '</h2><p>내 답안: <b>' + selectedText + '</b> · 정답: <b>' + CHOICE_LABELS[question.ans] +
-          '</b> · 배점: ' + (question.pts || 2) + '점</p>' + questionBody + '</section>');
+        if (question.explanation || question.e) {
+          questionBody += '<div class="explanation"><b>기존 해설</b><p>' +
+            (question.explanation || question.e) + '</p></div>';
+        }
+        var selectedText = formattedResponse(question, selected);
+        var correctText = formattedAnswer(question);
+        var verdict = !included ? '제외' :
+          (evaluation.status === 'pending-manual' ? '채점 대기' :
+            (evaluation.status === 'unanswered' ? '미응답' : (correct ? '정답' : '오답')));
+        cards.push('<section class="question"><h2>' + (question.number || question.n) + '번 · ' + verdict +
+          '</h2><p>내 답안: <b>' + esc2(selectedText) + '</b> · 정답: <b>' + esc2(correctText) +
+          '</b> · 배점: ' + (question.points || question.pts || 0) + '점</p>' + questionBody + '</section>');
       }
 
       var score = scoreExam(exam);
