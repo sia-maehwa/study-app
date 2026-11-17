@@ -195,12 +195,25 @@
       return !!(target && (target === root || (root.contains && root.contains(target))));
     }
 
+    /* touch-action은 포인터가 닿기 전에 결정되므로 펜 hover 단계에서 미리 잠급니다.
+       손가락(touch)에는 이 클래스를 적용하지 않아 기존 스크롤 동작을 보존합니다. */
+    function onPointerOver(event) {
+      if (event.pointerType !== 'pen' || !isInsideRoot(event.target)) return;
+      root.classList.add('pen-hover-input');
+    }
+    function onPointerOut(event) {
+      if (event.pointerType !== 'pen') return;
+      if (!isInsideRoot(event.relatedTarget)) root.classList.remove('pen-hover-input');
+    }
+
     function onPointerDown(event) {
       /* 이전 펜 동작 뒤 클릭이 발생하지 않았다면 다음 입력부터는 새 동작입니다. */
       pendingChoiceClickTarget = null;
       if (event.pointerType !== 'pen' || mode === 'off' || activeStroke) return;
       if (!isInsideRoot(event.target) || isControlTarget(event.target)) return;
 
+      /* pointerover 전에 접촉하는 브라우저를 위한 보조 처리입니다. */
+      root.classList.add('pen-hover-input');
       activeChoiceTarget = event.target.closest('[data-choice], [data-omr]');
       activePointerId = event.pointerId;
       var surfaceRect = root.getBoundingClientRect();
@@ -231,6 +244,14 @@
       /* 펜 입력은 pointermove/getCoalescedEvents 단일 경로로 수집합니다. */
     }
     function onPointerMove(event) {
+      /* hover 이동 이벤트도 처리해 pointerover가 누락되는 브라우저를 보완합니다. */
+      if (event.pointerType === 'pen' && !activeStroke) {
+        if (event.buttons === 0 && isInsideRoot(event.target)) {
+          root.classList.add('pen-hover-input');
+        } else if (!isInsideRoot(event.target) && !isInsideRoot(event.relatedTarget)) {
+          root.classList.remove('pen-hover-input');
+        }
+      }
       if (!activeStroke || event.pointerId !== activePointerId) return;
       /* 펜 이동 중 브라우저가 페이지 드래그/선택 제스처를 시작하지 못하게 합니다. */
       if (event.cancelable) event.preventDefault();
@@ -297,6 +318,8 @@
     }
 
     var capture = { capture: true, passive: false };
+    document.addEventListener('pointerover', onPointerOver, true);
+    document.addEventListener('pointerout', onPointerOut, true);
     document.addEventListener('pointerdown', onPointerDown, capture);
     document.addEventListener('click', suppressChoiceClick, true);
     document.addEventListener('pointermove', onPointerMove, capture);
@@ -350,6 +373,8 @@
     function destroy() {
       window.removeEventListener('resize', resize);
       if (resizeObserver) resizeObserver.disconnect();
+      document.removeEventListener('pointerover', onPointerOver, true);
+      document.removeEventListener('pointerout', onPointerOut, true);
       document.removeEventListener('pointerdown', onPointerDown, true);
       document.removeEventListener('click', suppressChoiceClick, true);
       document.removeEventListener('pointermove', onPointerMove, true);
@@ -360,7 +385,7 @@
       setPageDragLock(false);
       try { if (activePointerId !== null) root.releasePointerCapture(activePointerId); } catch (ignore) {}
       if (canvas.parentNode === root) root.removeChild(canvas);
-      root.classList.remove('pen-surface-root', 'pen-input-active');
+      root.classList.remove('pen-surface-root', 'pen-input-active', 'pen-hover-input');
       root._penToolsCleanup = null;
     }
     root._penToolsCleanup = destroy;

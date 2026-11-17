@@ -328,6 +328,19 @@ function main() {
 
   let html = read('app-source.html');
   const examApp = read('js/exam-app.js');
+  const penTools = read('js/pen-tools.js');
+  const conceptApp = read('js/app.js');
+  assert(penTools.includes('function onPointerOver(event)') &&
+    penTools.includes('function onPointerOut(event)') &&
+    penTools.includes("document.addEventListener('pointerover', onPointerOver, true)") &&
+    penTools.includes("document.addEventListener('pointerout', onPointerOut, true)") &&
+    penTools.includes("root.classList.add('pen-hover-input')") &&
+    penTools.includes("root.classList.remove('pen-hover-input')") &&
+    styleSource.includes('.view.pen-surface-root.pen-hover-input'),
+    'Stylus hover must apply touch-action locking before contact and release it on exit.');
+  assert(conceptApp.includes('data-penclear') && examApp.includes('data-penclear') &&
+    penTools.includes("querySelector('[data-penclear]')"),
+    'Per-question clear handwriting controls must render and bind in both study and exam views.');
   assert(!html.includes('data-pplx-inline-edit'), 'Unexpected editor-injected script in app-source.html.');
   assert(html.includes('id="view-subject-select"'), 'The first-visit subject selection view is missing.');
   const assessmentLoadOrder = [
@@ -353,7 +366,7 @@ function main() {
     'The source template must load the local css/style.css file.');
   for (const file of ['courses/social-culture/content.js', 'courses/social-culture/assessments.js', 'courses/english/assessments.js', 'js/course-registry.js', 'js/data.js', 'js/exams.js', 'js/storage.js', 'js/predict.js', 'js/assessment-engine.js', 'js/game.js', 'js/pen-tools.js', 'js/exam-app.js', 'js/app.js']) {
     const scriptRef = file === 'js/pen-tools.js'
-      ? 'src="js/pen-tools.js?v=20261117-ai-report-1"'
+      ? 'src="js/pen-tools.js?v=20261117-pen-hover-lock-blue-icon-1"'
       : (file === 'js/exam-app.js'
         ? 'src="js/exam-app.js?v=20261117-english-image-pen-fix-1"'
         : (file === 'js/analytics.js'
