@@ -62,7 +62,7 @@
   function normalizeStimulus(question) {
     var stimulus = question.stimulus;
     if (stimulus == null && Array.isArray(question.assets) && question.assets.length) {
-      stimulus = { type: 'image', assets: question.assets.slice() };
+      stimulus = { type: question.assetType || question.mediaType || 'image', assets: question.assets.slice() };
     }
     if (stimulus == null && (question.image || question.imageUrl || question.imagePath)) {
       stimulus = {
@@ -199,7 +199,11 @@
 
   function evaluateResponse(question, response, manualGrade) {
     var q = question && question.schemaVersion === 1 ? question : normalizeQuestion(question || {});
-    if (response === null || response === undefined || response === '') {
+    if (response === null || response === undefined || response === '' ||
+        (q.responseType === 'multiple-select' && Array.isArray(response) && response.length === 0) ||
+        (q.responseType === 'short-answer' && normalizeText(response) === '') ||
+        (q.responseType === 'numeric' && String(response).trim() === '') ||
+        ((q.responseType === 'essay' || q.responseType === 'code') && String(response).trim() === '')) {
       return result('unanswered', q, 0, false);
     }
 
@@ -292,7 +296,7 @@
     var q = normalizeQuestion(question);
     var errors = [];
     if (!q.id) errors.push('missing-id');
-    if (!q.prompt) errors.push('missing-prompt');
+    if (!q.prompt && !q.stimulus) errors.push('missing-prompt');
     if (q.points < 0) errors.push('invalid-points');
     if (q.stimulus && STIMULUS_TYPES.indexOf(q.stimulus.type) === -1) errors.push('unsupported-stimulus-type');
     if (q.responseType === 'single-choice') {
@@ -310,6 +314,27 @@
     return { valid: errors.length === 0, errors: errors, question: q };
   }
 
+  function validateAssessment(assessment, options) {
+    var normalized = assessment && assessment.schemaVersion === 1
+      ? assessment
+      : normalizeAssessment(assessment, options);
+    var errors = [];
+    if (!normalized.id) errors.push('missing-assessment-id');
+    if (!normalized.courseId) errors.push('missing-course-id');
+    if (!Array.isArray(normalized.questions) || !normalized.questions.length) errors.push('assessment-items-required');
+    if (!Number.isFinite(normalized.durationSec) || normalized.durationSec < 0) errors.push('invalid-duration');
+    var seen = {};
+    (normalized.questions || []).forEach(function (question, index) {
+      if (seen[question.id]) errors.push('duplicate-question-id:' + question.id);
+      seen[question.id] = true;
+      var validation = validateQuestion(question);
+      validation.errors.forEach(function (error) {
+        errors.push('question-' + index + ':' + error);
+      });
+    });
+    return { valid: errors.length === 0, errors: errors, assessment: normalized };
+  }
+
   global.AssessmentEngine = {
     schemaVersion: 1,
     responseTypes: RESPONSE_TYPES.slice(),
@@ -318,6 +343,7 @@
     normalizeAssessment: normalizeAssessment,
     evaluateResponse: evaluateResponse,
     gradeAttempt: gradeAttempt,
-    validateQuestion: validateQuestion
+    validateQuestion: validateQuestion,
+    validateAssessment: validateAssessment
   };
 })(window);
