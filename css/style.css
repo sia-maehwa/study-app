@@ -975,3 +975,11 @@ p, li, figcaption { text-wrap: pretty; }
 .manual-grade-answer { min-width:0; }
 .manual-grade-answer pre { max-height:16rem; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; margin-top:var(--space-2); padding:var(--space-3); border-radius:var(--radius-md); background:var(--color-bg-subtle); }
 .manual-grade-item .exam-response-field { max-width:100%; }
+
+
+/* 응시 기록 */
+.attempt-history { margin:var(--space-6) 0; }
+.attempt-history-list { display:grid; gap:var(--space-3); }
+.attempt-history-item { display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); flex-wrap:wrap; padding:var(--space-3) 0; border-top:1px solid var(--color-divider); }
+.attempt-history-info { display:grid; gap:4px; min-width:0; }
+.attempt-history-info span { color:var(--color-text-muted); font-size:var(--text-sm); }
