@@ -151,6 +151,7 @@
       examrun: document.getElementById('view-examrun'),
       examresult: document.getElementById('view-examresult'),
       game: document.getElementById('view-game'),
+      analytics: document.getElementById('view-analytics'),
     },
     wrongBadge: document.getElementById('wrongCountBadge'),
   };
@@ -679,6 +680,7 @@
       case 'examrun': if (window.ExamUI) window.ExamUI.renderRun(el.views.examrun); break;
       case 'examresult': if (window.ExamUI) window.ExamUI.renderResult(el.views.examresult); break;
       case 'game': if (window.GameUI) window.GameUI.render(el.views.game); break;
+      case 'analytics': if (window.AnalyticsUI) window.AnalyticsUI.render(el.views.analytics, getSelectedSubject()); break;
       case 'result': /* renderResult가 이미 렌더링됨 */ break;
     }
     updateWrongBadge();

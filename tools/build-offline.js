@@ -137,6 +137,47 @@ function validateQuestionData() {
   assert(fullManual.earnedPoints === 5 && fullManual.correctCount === 1, 'Full manual grading must count as correct.');
   assert(engine.validateQuestion(essay).valid && engine.validateQuestion(code).valid, 'Manual-review configuration validation failed.');
   assert(engine.gradeAttempt([single, multi], [1, [0, 2]]).earnedPoints === 5, 'Generic attempt aggregation failed.');
+  vm.runInContext(read('js/analytics.js'), context, { filename: 'js/analytics.js' });
+  const analytics = context.window.StudyAnalytics;
+  assert(analytics && typeof analytics.calculate === 'function', 'The learning analytics module did not initialize.');
+  const analyticsExam = normalizedOfficial[0];
+  const analyticsCorrectAnswers = analyticsExam.questions.map(question => question.answerKey);
+  const analyticsWrongAnswers = analyticsCorrectAnswers.slice();
+  const wrongIndex = 1;
+  analyticsWrongAnswers[wrongIndex] = analyticsCorrectAnswers[wrongIndex] === 0 ? 1 : 0;
+  const analyticsResult = analytics.calculate({
+    courseId: 'social-culture',
+    units: base.units,
+    conceptQuestions: base.questions,
+    exams: [analyticsExam],
+    history: [
+      { courseId: 'social-culture', id: analyticsExam.id, attemptId: 'analytics-a1', score: 40, max: 50, at: 1000 },
+      { courseId: 'social-culture', id: analyticsExam.id, attemptId: 'analytics-a2', score: 35, max: 50, at: 2000 },
+      { courseId: 'social-culture', id: analyticsExam.id, score: 30, max: 50, at: 3000 }
+    ],
+    snapshots: {
+      ['social-culture:' + analyticsExam.id + ':analytics-a1']: {
+        courseId: 'social-culture', examId: analyticsExam.id, attemptId: 'analytics-a1',
+        answers: analyticsWrongAnswers, manualGrades: {}, excludedDiagram: false, submittedAt: 1000
+      },
+      ['social-culture:' + analyticsExam.id + ':analytics-a2']: {
+        courseId: 'social-culture', examId: analyticsExam.id, attemptId: 'analytics-a2',
+        answers: analyticsWrongAnswers, manualGrades: {}, excludedDiagram: false, submittedAt: 2000
+      }
+    },
+    conceptStats: { total: 3, correct: 2, byUnit: { 1: { total: 3, correct: 2 } } },
+    conceptWrong: { 2: 2 },
+    engine
+  });
+  assert(analyticsResult.totalExamAttempts === 3 && analyticsResult.detailedAttempts === 2 &&
+    analyticsResult.scoreOnlyAttempts === 1, 'Learning analytics must separate detailed attempts from score-only history.');
+  assert(analyticsResult.examQuestionWeakness.some(item =>
+    item.questionNumber === 2 && item.incorrectCount === 2),
+    'Learning analytics must detect repeated wrong answers on the same exam question.');
+  assert(analyticsResult.unitMetrics[0].accuracy === 67,
+    'Learning analytics must calculate concept-unit accuracy from stored aggregate statistics.');
+  assert(analyticsResult.unitQuestionCoverage === 0,
+    'Learning analytics must not infer unit tags for unclassified mock exam questions.');
   return { exams, conceptQuestions: base.questions.length, predictQuestions: predict.reduce((sum, exam) => sum + exam.questions.length, 0) };
 }
 
@@ -158,7 +199,7 @@ function validateRuntimeAssets(exams) {
   const requiredScripts = [
     'courses/social-culture/content.js', 'courses/social-culture/assessments.js',
     'js/course-registry.js', 'js/data.js', 'js/exams.js', 'js/storage.js', 'js/predict.js',
-    'js/assessment-engine.js', 'js/game.js', 'js/pen-tools.js', 'js/exam-app.js', 'js/app.js'
+    'js/assessment-engine.js', 'js/game.js', 'js/pen-tools.js', 'js/exam-app.js', 'js/analytics.js', 'js/app.js'
   ];
   for (const file of requiredScripts) {
     const absolute = path.join(root, file);
@@ -207,7 +248,9 @@ function main() {
     'src="js/exams.js"',
     'src="js/predict.js"',
     'src="js/assessment-engine.js"',
-    'src="js/exam-app.js?v=20261117-attempt-history-1"'
+    'src="js/exam-app.js?v=20261117-attempt-history-1"',
+    'src="js/analytics.js?v=20261117-learning-analytics-1"',
+    'src="js/app.js"'
   ].map(ref => html.indexOf(ref));
   assert(assessmentLoadOrder.every(position => position >= 0) &&
     assessmentLoadOrder.every((position, index) => index === 0 || position > assessmentLoadOrder[index - 1]),
@@ -225,7 +268,9 @@ function main() {
       ? 'src="js/pen-tools.js?v=20261117-ai-report-1"'
       : (file === 'js/exam-app.js'
         ? 'src="js/exam-app.js?v=20261117-attempt-history-1"'
-        : 'src="' + file + '"');
+        : (file === 'js/analytics.js'
+          ? 'src="js/analytics.js?v=20261117-learning-analytics-1"'
+          : 'src="' + file + '"'));
     assert(html.includes(scriptRef), 'The source template is missing ' + file + '.');
   }
   assert(examApp.includes("return 'assets/exams/'"),
@@ -236,6 +281,11 @@ function main() {
     'Exam submissions must persist full attempt snapshots.');
   assert(examApp.includes('data-open-attempt') && examApp.includes('function openAttempt'),
     'The exam picker must reopen saved attempts for review and grading edits.');
+  const analyticsSource = read('js/analytics.js');
+  assert(analyticsSource.includes('function calculate(options)') && analyticsSource.includes('unitQuestionCoverage'),
+    'The learning analytics calculation module is missing its testable model or classification coverage check.');
+  assert(fs.existsSync(path.join(root, 'service-worker.js')) && read('service-worker.js').includes('social-culture-study-shell-v12'),
+    'The service worker cache must be advanced for the learning analytics module.');
   assert(!/https?:\/\//i.test(html.replace(/<link rel="icon" href="data:image\/svg\+xml,[^"]*"/, '')),
     'The runtime template must not depend on an external URL.');
 
