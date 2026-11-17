@@ -1,7 +1,7 @@
 /* 2026학년도 수능 영어 평가 데이터
-   한국교육과정평가원 공식 홀수형 정답·배점만 보관합니다.
-   문제 본문/선택지 원문과 듣기 음원은 복제하지 않고 공식 자료를 링크합니다.
-   이 모듈은 45문항 답안 입력·채점용 companion sheet입니다. */
+   평가원 홀수형 원문 페이지 이미지와 공식 정답·배점을 사용합니다.
+   듣기 전체 음원은 EBSi 배포 MP3를 로컬 자산으로 포함합니다.
+   문항별 응답·채점은 공통 AssessmentEngine을 사용합니다. */
 (function (global) {
   'use strict';
   var exam = {
@@ -14,11 +14,14 @@
   "assessmentDate": "2025-11-13",
   "durationSec": 4200,
   "maxScore": 100,
-  "sourceUrl": "https://cdn.kice.re.kr/suneung-26/suneung-26_3.pdf",
+  "sourceUrl": "https://files-scs.pstatic.net/2025/11/18/jNffYLbN3u/2026%20%EC%88%98%EB%8A%A5%20%EC%98%81%EC%96%B4%20%EB%AC%B8%EC%A0%9C.pdf",
+  "officialSourceUrl": "https://cdn.kice.re.kr/suneung-26/suneung-26_3.pdf",
   "answerKeyUrl": "https://cdn.kice.re.kr/suneung-26/suneung-26_3a.pdf",
-  "sourceLabel": "한국교육과정평가원 2026학년도 수능 영어 영역 문제지·정답표",
-  "sourceNote": "문제와 지문은 평가원 공식 PDF에서 확인합니다. 듣기 1~17번의 음원은 앱에 포함되어 있지 않아 별도 재생이 필요합니다. PDF 열람에는 인터넷 연결이 필요합니다.",
-  "questionFormat": "external-source-answer-sheet",
+  "listeningAudioUrl": "assets/audio/2026_suneung_english_listening.mp3",
+  "audioSourceUrl": "https://wdown.ebsi.co.kr/W61001/01exam/20251113/go3/eng_1_mp3_83X8155G.mp3",
+  "sourceLabel": "한국교육과정평가원 2026학년도 수능 영어 영역 홀수형 문제지·정답표",
+  "sourceNote": "한국교육과정평가원 원출처의 홀수형 원문 8쪽과 EBSi 듣기 1~17번 통합 음원을 앱에 포함했습니다. 원문 이미지와 음원은 앱 안에서 바로 이용할 수 있습니다.",
+  "questionFormat": "embedded-official-page-answer-sheet",
   "questions": [
     {
       "id": "2026-suneung-english-odd-01",
@@ -26,8 +29,19 @@
       "number": 1,
       "section": "listening",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF의 홀수형 1번 선택지를 확인하고, 별도 듣기 음원을 들은 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-01.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 1쪽 · 1번 포함",
+            "openOriginal": true,
+            "pageNumber": 1
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -46,8 +60,19 @@
       "number": 2,
       "section": "listening",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF의 홀수형 2번 선택지를 확인하고, 별도 듣기 음원을 들은 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-01.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 1쪽 · 2번 포함",
+            "openOriginal": true,
+            "pageNumber": 1
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -66,8 +91,19 @@
       "number": 3,
       "section": "listening",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF의 홀수형 3번 선택지를 확인하고, 별도 듣기 음원을 들은 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-01.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 1쪽 · 3번 포함",
+            "openOriginal": true,
+            "pageNumber": 1
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -86,8 +122,19 @@
       "number": 4,
       "section": "listening",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF의 홀수형 4번 선택지를 확인하고, 별도 듣기 음원을 들은 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-01.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 1쪽 · 4번 포함",
+            "openOriginal": true,
+            "pageNumber": 1
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -106,8 +153,19 @@
       "number": 5,
       "section": "listening",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF의 홀수형 5번 선택지를 확인하고, 별도 듣기 음원을 들은 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-01.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 1쪽 · 5번 포함",
+            "openOriginal": true,
+            "pageNumber": 1
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -126,8 +184,19 @@
       "number": 6,
       "section": "listening",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF의 홀수형 6번 선택지를 확인하고, 별도 듣기 음원을 들은 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-01.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 1쪽 · 6번 포함",
+            "openOriginal": true,
+            "pageNumber": 1
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -146,8 +215,19 @@
       "number": 7,
       "section": "listening",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF의 홀수형 7번 선택지를 확인하고, 별도 듣기 음원을 들은 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-01.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 1쪽 · 7번 포함",
+            "openOriginal": true,
+            "pageNumber": 1
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -166,8 +246,19 @@
       "number": 8,
       "section": "listening",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF의 홀수형 8번 선택지를 확인하고, 별도 듣기 음원을 들은 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-01.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 1쪽 · 8번 포함",
+            "openOriginal": true,
+            "pageNumber": 1
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -186,8 +277,19 @@
       "number": 9,
       "section": "listening",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF의 홀수형 9번 선택지를 확인하고, 별도 듣기 음원을 들은 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-01.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 1쪽 · 9번 포함",
+            "openOriginal": true,
+            "pageNumber": 1
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -206,8 +308,19 @@
       "number": 10,
       "section": "listening",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF의 홀수형 10번 선택지를 확인하고, 별도 듣기 음원을 들은 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-01.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 1쪽 · 10번 포함",
+            "openOriginal": true,
+            "pageNumber": 1
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -226,8 +339,19 @@
       "number": 11,
       "section": "listening",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF의 홀수형 11번 선택지를 확인하고, 별도 듣기 음원을 들은 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-01.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 1쪽 · 11번 포함",
+            "openOriginal": true,
+            "pageNumber": 1
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -246,8 +370,19 @@
       "number": 12,
       "section": "listening",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF의 홀수형 12번 선택지를 확인하고, 별도 듣기 음원을 들은 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-01.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 1쪽 · 12번 포함",
+            "openOriginal": true,
+            "pageNumber": 1
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -266,8 +401,19 @@
       "number": 13,
       "section": "listening",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF의 홀수형 13번 선택지를 확인하고, 별도 듣기 음원을 들은 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-02.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 2쪽 · 13번 포함",
+            "openOriginal": true,
+            "pageNumber": 2
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -286,8 +432,19 @@
       "number": 14,
       "section": "listening",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF의 홀수형 14번 선택지를 확인하고, 별도 듣기 음원을 들은 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-02.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 2쪽 · 14번 포함",
+            "openOriginal": true,
+            "pageNumber": 2
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -306,8 +463,19 @@
       "number": 15,
       "section": "listening",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF의 홀수형 15번 선택지를 확인하고, 별도 듣기 음원을 들은 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-02.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 2쪽 · 15번 포함",
+            "openOriginal": true,
+            "pageNumber": 2
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -326,8 +494,19 @@
       "number": 16,
       "section": "listening",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF의 홀수형 16번 선택지를 확인하고, 별도 듣기 음원을 들은 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-02.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 2쪽 · 16번 포함",
+            "openOriginal": true,
+            "pageNumber": 2
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -346,8 +525,19 @@
       "number": 17,
       "section": "listening",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF의 홀수형 17번 선택지를 확인하고, 별도 듣기 음원을 들은 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-02.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 2쪽 · 17번 포함",
+            "openOriginal": true,
+            "pageNumber": 2
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -366,8 +556,19 @@
       "number": 18,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 18번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-02.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 2쪽 · 18번 포함",
+            "openOriginal": true,
+            "pageNumber": 2
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -386,8 +587,19 @@
       "number": 19,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 19번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-02.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 2쪽 · 19번 포함",
+            "openOriginal": true,
+            "pageNumber": 2
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -406,8 +618,19 @@
       "number": 20,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 20번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-02.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 2쪽 · 20번 포함",
+            "openOriginal": true,
+            "pageNumber": 2
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -426,8 +649,19 @@
       "number": 21,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 21번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-03.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 3쪽 · 21번 포함",
+            "openOriginal": true,
+            "pageNumber": 3
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -446,8 +680,19 @@
       "number": 22,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 22번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-03.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 3쪽 · 22번 포함",
+            "openOriginal": true,
+            "pageNumber": 3
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -466,8 +711,19 @@
       "number": 23,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 23번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-03.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 3쪽 · 23번 포함",
+            "openOriginal": true,
+            "pageNumber": 3
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -486,8 +742,19 @@
       "number": 24,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 24번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-03.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 3쪽 · 24번 포함",
+            "openOriginal": true,
+            "pageNumber": 3
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -506,8 +773,19 @@
       "number": 25,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 25번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-04.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 4쪽 · 25번 포함",
+            "openOriginal": true,
+            "pageNumber": 4
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -526,8 +804,19 @@
       "number": 26,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 26번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-04.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 4쪽 · 26번 포함",
+            "openOriginal": true,
+            "pageNumber": 4
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -546,8 +835,19 @@
       "number": 27,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 27번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-04.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 4쪽 · 27번 포함",
+            "openOriginal": true,
+            "pageNumber": 4
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -566,8 +866,19 @@
       "number": 28,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 28번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-04.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 4쪽 · 28번 포함",
+            "openOriginal": true,
+            "pageNumber": 4
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -586,8 +897,19 @@
       "number": 29,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 29번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-05.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 5쪽 · 29번 포함",
+            "openOriginal": true,
+            "pageNumber": 5
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -606,8 +928,19 @@
       "number": 30,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 30번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-05.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 5쪽 · 30번 포함",
+            "openOriginal": true,
+            "pageNumber": 5
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -626,8 +959,19 @@
       "number": 31,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 31번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-05.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 5쪽 · 31번 포함",
+            "openOriginal": true,
+            "pageNumber": 5
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -646,8 +990,19 @@
       "number": 32,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 32번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-05.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 5쪽 · 32번 포함",
+            "openOriginal": true,
+            "pageNumber": 5
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -666,8 +1021,19 @@
       "number": 33,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 33번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-06.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 6쪽 · 33번 포함",
+            "openOriginal": true,
+            "pageNumber": 6
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -686,8 +1052,19 @@
       "number": 34,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 34번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-06.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 6쪽 · 34번 포함",
+            "openOriginal": true,
+            "pageNumber": 6
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -706,8 +1083,19 @@
       "number": 35,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 35번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-06.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 6쪽 · 35번 포함",
+            "openOriginal": true,
+            "pageNumber": 6
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -726,8 +1114,19 @@
       "number": 36,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 36번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-06.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 6쪽 · 36번 포함",
+            "openOriginal": true,
+            "pageNumber": 6
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -746,8 +1145,19 @@
       "number": 37,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 37번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-07.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 7쪽 · 37번 포함",
+            "openOriginal": true,
+            "pageNumber": 7
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -766,8 +1176,19 @@
       "number": 38,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 38번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-07.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 7쪽 · 38번 포함",
+            "openOriginal": true,
+            "pageNumber": 7
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -786,8 +1207,19 @@
       "number": 39,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 39번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-07.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 7쪽 · 39번 포함",
+            "openOriginal": true,
+            "pageNumber": 7
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -806,8 +1238,19 @@
       "number": 40,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 40번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-07.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 7쪽 · 40번 포함",
+            "openOriginal": true,
+            "pageNumber": 7
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -826,8 +1269,19 @@
       "number": 41,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 41번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-08.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 8쪽 · 41번 포함",
+            "openOriginal": true,
+            "pageNumber": 8
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -846,8 +1300,19 @@
       "number": 42,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 42번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-08.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 8쪽 · 42번 포함",
+            "openOriginal": true,
+            "pageNumber": 8
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -866,8 +1331,19 @@
       "number": 43,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 43번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-08.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 8쪽 · 43번 포함",
+            "openOriginal": true,
+            "pageNumber": 8
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -886,8 +1362,19 @@
       "number": 44,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 44번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-08.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 8쪽 · 44번 포함",
+            "openOriginal": true,
+            "pageNumber": 8
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -906,8 +1393,19 @@
       "number": 45,
       "section": "reading",
       "responseType": "single-choice",
-      "prompt": "공식 문제지 PDF에서 홀수형 45번 지문과 선택지를 확인한 뒤 답을 선택하세요.",
+      "prompt": "",
       "promptFormat": "text",
+      "stimulus": {
+        "type": "image",
+        "assets": [
+          {
+            "url": "assets/exams/2026_suneung_english_odd/pages/page-08.jpg",
+            "alt": "2026학년도 수능 영어 홀수형 원문 8쪽 · 45번 포함",
+            "openOriginal": true,
+            "pageNumber": 8
+          }
+        ]
+      },
       "options": [
         "",
         "",
@@ -930,10 +1428,13 @@
     source: {
       paperUrl: exam.sourceUrl,
       answerKeyUrl: exam.answerKeyUrl,
+      listeningAudioUrl: exam.listeningAudioUrl,
       publisher: '한국교육과정평가원',
+      audioPublisher: 'EBSi',
       answerVariant: 'odd',
-      contentMode: 'external-paper-answer-sheet',
-      listeningAudioIncluded: false
+      contentMode: 'embedded-page-images-and-local-audio',
+      listeningAudioIncluded: true,
+      sourcePageCount: 8
     }
   };
 })(window);
