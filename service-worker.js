@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'social-culture-study-shell-v13';
+const CACHE_NAME = 'social-culture-study-shell-v14';
 const CORE_ASSETS = [
   './',
   './index.html',
