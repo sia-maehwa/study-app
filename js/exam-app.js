@@ -59,8 +59,12 @@
     return allExams(state.courseId).filter(function (e) { return e.id === id; })[0] || null;
   }
   function isPredict(e) {
-    return !!(e && (e.assessmentType === 'self-produced-practice' ||
-      e.assessmentCategory === 'practice' || (e.id && e.id.indexOf('predict_') === 0)));
+    if (!e) return false;
+    var match = window.StudyCourseRegistry && window.StudyCourseRegistry.findAssessmentProfileForExam(e);
+    if (match && match.profile && match.profile.category) return match.profile.category === 'practice';
+    return e.assessmentCategory === 'practice' ||
+      ['self-produced-practice', 'practice', 'quiz', 'homework'].indexOf(e.assessmentType || e.kind) !== -1 ||
+      !!(e.id && e.id.indexOf('predict_') === 0);
   }
   function getAssessmentProfile(exam) {
     if (!window.StudyCourseRegistry || !exam) return null;
@@ -269,7 +273,7 @@
         var best = bestRecord(e.id);
         var durationMinutes = Math.round(examDurationSec(e) / 60);
         html += '<button type="button" class="exam-card predict-card" data-start-exam="' + e.id + '">' +
-          '<span class="exam-card-kind">' + esc2(e.assessmentType || '연습 평가') + '</span>' +
+          '<span class="exam-card-kind">' + esc2(assessmentProfileLabel(e) || e.assessmentType || '연습 평가') + '</span>' +
           '<span class="exam-card-title">' + esc2(e.label) + '</span>' +
           '<span class="exam-card-meta">' + e.questions.length + '문항 · ' + maxScore(e) + '점' +
           (durationMinutes ? ' · ' + durationMinutes + '분' : '') +
@@ -296,6 +300,11 @@
       }
     }
 
+    function assessmentProfileLabel(exam) {
+      var match = window.StudyCourseRegistry && window.StudyCourseRegistry.findAssessmentProfileForExam(exam);
+      return match && match.profile ? match.profile.label : '';
+    }
+
     /* 등록된 기출·정규 평가 */
     html += '<div class="section-head" style="margin-top:var(--space-8)"><h2>기출·정규 평가</h2>' +
       '<span>' + officialExams.length + '회 · ' + totalOfficialQuestions + '문항</span></div>';
@@ -309,7 +318,7 @@
       if (exam.kind === 'suneung') return '수능';
       if (exam.kind === 'june') return '6월 모의평가';
       if (exam.kind === 'sept') return '9월 모의평가';
-      return exam.assessmentType || exam.kind || '정규 평가';
+      return assessmentProfileLabel(exam) || exam.assessmentType || exam.kind || '정규 평가';
     }
     function examCardHtml(exam) {
       var best = bestRecord(exam.id);
