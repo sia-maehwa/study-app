@@ -284,7 +284,18 @@ function main() {
   const analyticsSource = read('js/analytics.js');
   assert(analyticsSource.includes('function calculate(options)') && analyticsSource.includes('unitQuestionCoverage'),
     'The learning analytics calculation module is missing its testable model or classification coverage check.');
-  assert(fs.existsSync(path.join(root, 'service-worker.js')) && read('service-worker.js').includes('social-culture-study-shell-v12'),
+  const appSource = read('js/app.js');
+  assert(appSource.includes('function courseStorageKey(key)') &&
+    appSource.includes("'study_course_' + encodeURIComponent(courseId) + '_' + key"),
+    'Concept learning storage must be namespaced by course while retaining the legacy-course branch.');
+  assert(appSource.includes("courseId === 'social-culture'") &&
+    appSource.includes("return courseId === 'social-culture'"),
+    'The existing Social & Culture storage keys must remain unchanged.');
+  assert(analyticsSource.includes('courseStorageKey(courseId, KEYS.conceptStats)') &&
+    analyticsSource.includes('courseStorageKey(courseId, KEYS.conceptWrong)'),
+    'Learning analytics must read concept statistics and wrong notes from the selected course namespace.');
+
+  assert(fs.existsSync(path.join(root, 'service-worker.js')) && read('service-worker.js').includes('social-culture-study-shell-v13'),
     'The service worker cache must be advanced for the learning analytics module.');
   assert(!/https?:\/\//i.test(html.replace(/<link rel="icon" href="data:image\/svg\+xml,[^"]*"/, '')),
     'The runtime template must not depend on an external URL.');
