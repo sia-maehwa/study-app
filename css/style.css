@@ -170,6 +170,15 @@ p, li, figcaption { text-wrap: pretty; }
   border-color: var(--color-primary); background: var(--color-primary-highlight); box-shadow: var(--shadow-md);
   transform: translateY(-1px) scale(1.015);
 }
+.subject-pick-button:disabled {
+  cursor: not-allowed; opacity: .72;
+}
+.subject-pick-button:disabled:hover, .subject-pick-button:disabled:focus-visible {
+  border-color: var(--color-divider); background: var(--color-surface); box-shadow: var(--shadow-sm);
+  transform: none;
+}
+.subject-pick-button:disabled .subject-pick-mark { background: var(--color-text-faint); }
+.subject-pick-button:disabled .subject-pick-action { color: var(--color-text-muted); }
 .subject-pick-mark {
   display: inline-flex; flex: 0 0 52px; width: 52px; height: 52px; align-items: center; justify-content: center;
   color: #fff; background: var(--color-primary); border-radius: 16px; font-size: 1.35rem; font-weight: 850;
