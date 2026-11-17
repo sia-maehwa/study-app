@@ -196,7 +196,7 @@ function main() {
     'src="js/exams.js"',
     'src="js/predict.js"',
     'src="js/assessment-engine.js"',
-    'src="js/exam-app.js?v=20261117-mock-wrong-1"'
+    'src="js/exam-app.js?v=20261117-assessment-engine-1"'
   ].map(ref => html.indexOf(ref));
   assert(assessmentLoadOrder.every(position => position >= 0) &&
     assessmentLoadOrder.every((position, index) => index === 0 || position > assessmentLoadOrder[index - 1]),
@@ -213,7 +213,7 @@ function main() {
     const scriptRef = file === 'js/pen-tools.js'
       ? 'src="js/pen-tools.js?v=20261117-ai-report-1"'
       : (file === 'js/exam-app.js'
-        ? 'src="js/exam-app.js?v=20261117-mock-wrong-1"'
+        ? 'src="js/exam-app.js?v=20261117-assessment-engine-1"'
         : 'src="' + file + '"');
     assert(html.includes(scriptRef), 'The source template is missing ' + file + '.');
   }
