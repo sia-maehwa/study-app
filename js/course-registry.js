@@ -96,10 +96,12 @@
     })[0] || null;
   }
 
-  function findAssessmentProfileForExam(exam) {
+  function findAssessmentProfileForExam(exam, courseId) {
     if (!exam) return null;
+    var requestedCourseId = courseId || exam.courseId || null;
     var match = null;
     courses.some(function (course) {
+      if (requestedCourseId && course.id !== requestedCourseId) return false;
       (course.assessmentProfiles || []).some(function (profile) {
         var prefixMatch = profile.idPrefix && String(exam.id || '').indexOf(profile.idPrefix) === 0;
         var kindMatch = Array.isArray(profile.sessionKinds) && profile.sessionKinds.indexOf(exam.kind) !== -1;
