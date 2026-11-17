@@ -16,6 +16,7 @@ function validateQuestionData() {
   vm.runInContext(read('js/course-registry.js'), context, { filename: 'js/course-registry.js' });
   vm.runInContext(read('js/data.js'), context, { filename: 'js/data.js' });
   vm.runInContext(read('courses/social-culture/assessments.js'), context, { filename: 'courses/social-culture/assessments.js' });
+  vm.runInContext(read('courses/english/assessments.js'), context, { filename: 'courses/english/assessments.js' });
   vm.runInContext(read('js/exams.js'), context, { filename: 'js/exams.js' });
   vm.runInContext(read('js/predict.js'), context, { filename: 'js/predict.js' });
   vm.runInContext(read('js/assessment-engine.js'), context, { filename: 'js/assessment-engine.js' });
@@ -23,17 +24,15 @@ function validateQuestionData() {
   const registry = context.window.StudyCourseRegistry;
   assert(registry && typeof registry.listAvailable === 'function', 'Course registry did not initialize.');
   const availableCourses = Array.from(registry.listAvailable());
-  assert(availableCourses.length === 1, 'Expected only the content-ready Social & Culture course to be available.');
+  assert(availableCourses.length === 2, 'Expected Social & Culture and the assessment-only English course to be available.');
   const plannedCourses = Array.from(registry.listPlanned());
-  assert(plannedCourses.length === 1, 'Expected one planned course in the course catalog.');
+  assert(plannedCourses.length === 0, 'No courses should remain planned after English assessment registration.');
   const english = registry.get('english');
-  assert(english && english.status === 'planned' && english.discipline === 'languages',
-    'The English course must be registered as planned, not available.');
-  assert(!english.contentKey && !english.assessmentKey &&
-    registry.getContent('english') === null && registry.getAssessmentData('english') === null,
-    'The planned English course must not point to empty or fabricated content modules.');
-  assert(!availableCourses.some(course => course.id === 'english'),
-    'The planned English course must not enter the available course selector.');
+  assert(english && english.status === 'available' && english.assessmentOnly === true && english.discipline === 'languages',
+    'English must be registered as an assessment-only available course.');
+  assert(!english.contentKey && english.assessmentKey === 'english' &&
+    registry.getContent('english') === null && registry.getAssessmentData('english'),
+    'English must resolve its assessment module without pretending concept content exists.');
   const socialCulture = registry.get('social-culture');
   assert(socialCulture && socialCulture.status === 'available', 'The Social & Culture course is missing or unavailable.');
   assert(socialCulture.contentKey === 'social-culture', 'The Social & Culture course has no content module key.');
@@ -94,6 +93,35 @@ function validateQuestionData() {
   }
   const engine = context.window.AssessmentEngine;
   assert(engine && engine.schemaVersion === 1, 'The shared assessment engine did not initialize.');
+  const englishAssessmentData = registry.getAssessmentData('english');
+  assert(englishAssessmentData && englishAssessmentData.officialExams.length === 1 &&
+    englishAssessmentData.practiceExams.length === 0,
+    'English official assessment module did not resolve as expected.');
+  const englishExam = englishAssessmentData.officialExams[0];
+  const englishProfile = registry.getAssessmentProfile('english', 'official-suneung');
+  const normalizedEnglish = engine.normalizeAssessment(englishExam, {
+    courseId: 'english', assessmentType: 'official-exam'
+  });
+  const englishValidation = engine.validateAssessment(normalizedEnglish);
+  assert(englishValidation.valid, 'English assessment validation failed: ' + englishValidation.errors.join(', '));
+  assert(normalizedEnglish.questionCount === 45 && normalizedEnglish.durationSec === 4200 &&
+    normalizedEnglish.totalPoints === 100 && normalizedEnglish.maxScore === 100,
+    'English assessment must be 45 questions, 70 minutes, and 100 points.');
+  assert(normalizedEnglish.questions.filter(q => q.section === 'listening').length === 17 &&
+    normalizedEnglish.questions.filter(q => q.section === 'reading').length === 28,
+    'English assessment must have 17 listening and 28 reading questions.');
+  const expectedEnglishAnswers = [2,1,0,4,0,3,0,4,3,3,0,1,1,2,2,0,4,1,0,1,1,0,2,1,3,2,3,3,1,4,0,4,3,2,3,3,4,4,2,2,1,4,4,2,4];
+  assert(normalizedEnglish.questions.every((q, index) =>
+    q.answerKey === expectedEnglishAnswers[index] && q.options.length === 5),
+    'English answer key or five-choice option structure differs from the verified odd-form key.');
+  assert(englishProfile && englishProfile.durationSec === 4200 && englishProfile.maxScore === 100 &&
+    englishProfile.gradeScaleType === 'absolute' && englishProfile.gradeCuts['1'] === 90 &&
+    englishProfile.gradeCuts['8'] === 20,
+    'English CSAT assessment profile or absolute grade scale is invalid.');
+  assert(englishExam.sourceUrl === 'https://cdn.kice.re.kr/suneung-26/suneung-26_3.pdf' &&
+    englishExam.answerKeyUrl === 'https://cdn.kice.re.kr/suneung-26/suneung-26_3a.pdf' &&
+    englishExam.sourceNote.includes('듣기 1~17번'),
+    'English assessment must retain official source links and the external listening-audio notice.');
   const normalizedOfficial = exams.map(exam => engine.normalizeAssessment({
     ...exam,
     questionImagePattern: 'assets/exams/{assessmentId}/q{number}.jpg'
@@ -208,7 +236,7 @@ function validateRuntimeAssets(exams) {
 
   const requiredScripts = [
     'courses/social-culture/content.js', 'courses/social-culture/assessments.js',
-    'js/course-registry.js', 'js/data.js', 'js/exams.js', 'js/storage.js', 'js/predict.js',
+    'courses/english/assessments.js', 'js/course-registry.js', 'js/data.js', 'js/exams.js', 'js/storage.js', 'js/predict.js',
     'js/assessment-engine.js', 'js/game.js', 'js/pen-tools.js', 'js/exam-app.js', 'js/analytics.js', 'js/app.js'
   ];
   for (const file of requiredScripts) {
@@ -255,6 +283,7 @@ function main() {
   assert(html.includes('id="view-subject-select"'), 'The first-visit subject selection view is missing.');
   const assessmentLoadOrder = [
     'src="courses/social-culture/assessments.js"',
+    'src="courses/english/assessments.js"',
     'src="js/exams.js"',
     'src="js/predict.js"',
     'src="js/assessment-engine.js"',
@@ -273,7 +302,7 @@ function main() {
 
   assert(/<link\b(?=[^>]*\brel=["']stylesheet["'])[^>]*\bhref=["']css\/style\.css["'][^>]*>/i.test(html),
     'The source template must load the local css/style.css file.');
-  for (const file of ['courses/social-culture/content.js', 'courses/social-culture/assessments.js', 'js/course-registry.js', 'js/data.js', 'js/exams.js', 'js/storage.js', 'js/predict.js', 'js/assessment-engine.js', 'js/game.js', 'js/pen-tools.js', 'js/exam-app.js', 'js/app.js']) {
+  for (const file of ['courses/social-culture/content.js', 'courses/social-culture/assessments.js', 'courses/english/assessments.js', 'js/course-registry.js', 'js/data.js', 'js/exams.js', 'js/storage.js', 'js/predict.js', 'js/assessment-engine.js', 'js/game.js', 'js/pen-tools.js', 'js/exam-app.js', 'js/app.js']) {
     const scriptRef = file === 'js/pen-tools.js'
       ? 'src="js/pen-tools.js?v=20261117-ai-report-1"'
       : (file === 'js/exam-app.js'
@@ -303,8 +332,9 @@ function main() {
     styleSource.includes('.subject-pick-button:disabled:hover'),
     'Disabled planned-course cards must not show active hover or focus behavior.');
   assert(fs.existsSync(path.join(root, 'courses/english/README.md')) &&
-    read('courses/english/README.md').includes('아직 문항 데이터는 등록하지 않았습니다'),
-    'The English course scaffold must clearly state that no question data is registered yet.');
+    read('courses/english/README.md').includes('실전 평가 사용 가능') &&
+    read('courses/english/assessments.js').includes('2026_suneung_english_odd'),
+    'The English assessment-only module and its content status must be documented.');
   assert(appSource.includes('function courseStorageKey(key)') &&
     appSource.includes("'study_course_' + encodeURIComponent(courseId) + '_' + key"),
     'Concept learning storage must be namespaced by course while retaining the legacy-course branch.');
@@ -314,9 +344,18 @@ function main() {
   assert(analyticsSource.includes('courseStorageKey(courseId, KEYS.conceptStats)') &&
     analyticsSource.includes('courseStorageKey(courseId, KEYS.conceptWrong)'),
     'Learning analytics must read concept statistics and wrong notes from the selected course namespace.');
+  assert(appSource.includes('activeCourse.assessmentOnly') && appSource.includes("view = 'exam'"),
+    'Assessment-only courses must route away from concept and game screens.');
+  assert(examApp.includes('e.sourceUrl') && examApp.includes('문제지 PDF') &&
+    examApp.includes("q.section === 'listening'"),
+    'English exam runner must expose the official PDF and listening/reading section labels.');
+  assert(styleSource.includes('.exam-source-banner') && styleSource.includes('.exam-source-inline'),
+    'Official PDF links must have dedicated readable styling.');
 
-  assert(fs.existsSync(path.join(root, 'service-worker.js')) && read('service-worker.js').includes('social-culture-study-shell-v14'),
-    'The service worker cache must be advanced for the learning analytics module.');
+  assert(fs.existsSync(path.join(root, 'service-worker.js')) &&
+    read('service-worker.js').includes('social-culture-study-shell-v15') &&
+    read('service-worker.js').includes('./courses/english/assessments.js'),
+    'The service worker cache must include the English assessment module.');
   assert(!/https?:\/\//i.test(html.replace(/<link rel="icon" href="data:image\/svg\+xml,[^"]*"/, '')),
     'The runtime template must not depend on an external URL.');
 

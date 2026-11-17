@@ -72,7 +72,7 @@
   }
   function getAssessmentProfile(exam) {
     if (!window.StudyCourseRegistry || !exam) return null;
-    var match = window.StudyCourseRegistry.findAssessmentProfileForExam(exam);
+    var match = window.StudyCourseRegistry.findAssessmentProfileForExam(exam, state.courseId);
     return match ? match.profile : null;
   }
   function examDurationSec(exam) {
@@ -312,6 +312,9 @@
     if (!cuts || typeof cuts !== 'object') {
       return { cuts: null, note: '이 평가에는 등급컷 데이터가 등록되어 있지 않습니다.' };
     }
+    if (profile && profile.gradeScaleType === 'absolute') {
+      return { cuts: cuts, note: '영어 영역 절대평가 등급 기준' };
+    }
     if (isPredict(e)) return { cuts: cuts, note: '과목별 연습 평가 기준 등급컷 · 참고용' };
     /* 사회·문화 기출 등급컷은 주요 입시기관 원점수 추정 종합치입니다. */
     return { cuts: cuts, note: e.gradeCutNote || '등록된 원점수 등급컷 · 참고용' };
@@ -354,6 +357,13 @@
       '<p>등록된 평가 ' + courseExams.length + '회 · 총 ' + (totalOfficialQuestions + totalPracticeQuestions) +
       '문항입니다. 각 평가의 문항 유형과 제한 시간에 맞춰 진행하며, 자동 채점과 수동 채점 상태를 구분합니다.</p>' +
       '</div>';
+
+    var sourceExam = courseExams.filter(function (exam) { return !!exam.sourceUrl; })[0];
+    if (sourceExam) {
+      html += '<div class="exam-source-banner"><a href="' + esc2(sourceExam.sourceUrl) +
+        '" target="_blank" rel="noopener noreferrer">한국교육과정평가원 공식 문제지 PDF 열기 ↗</a>' +
+        '<span>' + esc2(sourceExam.sourceNote || '문제 원문은 공식 자료에서 확인하세요.') + '</span></div>';
+    }
 
     /* 도표 제외 설정은 도표 문항이 있는 과목에만 표시합니다. */
     if (hasDiagramItems) {
@@ -399,7 +409,7 @@
     }
 
     function assessmentProfileLabel(exam) {
-      var match = window.StudyCourseRegistry && window.StudyCourseRegistry.findAssessmentProfileForExam(exam);
+      var match = window.StudyCourseRegistry && window.StudyCourseRegistry.findAssessmentProfileForExam(exam, state.courseId);
       return match && match.profile ? match.profile.label : '';
     }
 
@@ -713,11 +723,16 @@
 
     var html = '<div class="exam-run-top">' +
       '<div class="exam-run-info"><span class="quiz-tag exam-tag">' + esc2(e.label) + '</span>' +
-      '<span class="exam-run-q">' + (pos + 1) + ' / ' + inc.length + '</span></div>' +
+      '<span class="exam-run-q">' + (pos + 1) + ' / ' + inc.length + '</span>' +
+      (e.sourceUrl ? '<a class="exam-source-inline" href="' + esc2(e.sourceUrl) +
+        '" target="_blank" rel="noopener noreferrer">문제지 PDF ↗</a>' : '') + '</div>' +
       '<div class="exam-run-right"><span class="exam-timer" id="examTimer">' + fmtTime(examDurationSec(e)) + '</span>' +
       '<button class="quiz-exit" data-exit-exam type="button">✕ 나가기</button></div></div>';
 
     html += '<div class="exam-progress"><div class="progress-track"><div class="progress-fill" style="width:' + ((pos + 1) / inc.length * 100) + '%"></div></div></div>';
+    if (e.sourceUrl) {
+      html += '<div class="exam-source-banner compact"><span>' + esc2(e.sourceNote || '') + '</span></div>';
+    }
 
     html += penBarHtml();
 
@@ -728,7 +743,7 @@
       '<span class="' + (predict || hasTextPrompt ? 'pq-num' : 'exam-question-number') + '">' + (q.number || q.n || n) + '번</span>' +
       '<span class="' + (predict || hasTextPrompt ? 'pq-badje' : 'exam-question-points') + '">' + (q.points || q.pts || 0) + '점</span>' +
       (q.d ? '<span class="pq-badje dopyo">도표</span>' : '') +
-      '<span class="exam-question-type">' + esc2(responseType) + '</span></div>' +
+      '<span class="exam-question-type">' + esc2(q.section === 'listening' ? '듣기' : (q.section === 'reading' ? '독해' : responseType)) + '</span></div>' +
       '<div class="exam-qwrap">' + questionStimulusHtml(q, e, state.idx) + '</div>' +
       renderResponseControl(q, state.idx) +
       '</div>';

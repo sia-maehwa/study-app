@@ -169,6 +169,11 @@
 
   function show(view) {
     if (view !== 'subject-select' && !getSelectedSubject()) view = 'subject-select';
+    var activeCourse = getSelectedCourse();
+    var assessmentOnly = !!(activeCourse && activeCourse.assessmentOnly);
+    if (assessmentOnly && ['home', 'quiz', 'result', 'concepts', 'game'].indexOf(view) !== -1) {
+      view = 'exam';
+    }
     if (view !== 'quiz' && el.views.quiz && el.views.quiz._penToolsCleanup) el.views.quiz._penToolsCleanup();
     if (window.ExamUI) window.ExamUI.cleanup();
     if (window.GameUI) window.GameUI.cleanup();
@@ -180,6 +185,9 @@
     var navigation = document.querySelector('.gnb');
     if (navigation) navigation.hidden = (view === 'subject-select');
     document.querySelectorAll('.gnb-btn').forEach(function (b) {
+      var nav = b.dataset.nav;
+      b.hidden = assessmentOnly && (nav === 'concepts' || nav === 'game');
+      if (nav === 'home') b.textContent = assessmentOnly ? '시험 목록' : '문제 풀기';
       b.classList.toggle('active', b.dataset.nav === view);
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -193,7 +201,7 @@
       '<span class="hero-kicker">STUDY SUBJECT</span>' +
       '<h1>어떤 과목을 공부할까요?</h1>' +
       '<p class="subject-pick-description">공부할 과목을 선택해 주세요. 선택한 과목은 다음 실행에도 기억합니다.</p>' +
-      '<div class="section-head"><h2>과목 선택</h2><span>학습 가능 ' + SUBJECTS.length + '개 · 준비 중 ' + PLANNED_SUBJECTS.length + '개</span></div>' +
+      '<div class="section-head"><h2>과목 선택</h2><span>사용 가능 ' + SUBJECTS.length + '개 · 준비 중 ' + PLANNED_SUBJECTS.length + '개</span></div>' +
       '<div class="subject-pick-grid">';
 
     SUBJECTS.forEach(function (subject) {
