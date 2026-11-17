@@ -104,19 +104,26 @@
   }
   function bestRecord(id) {
     var best = null;
-    state.history.forEach(function (h) {
-      if (h.id === id && (best === null || h.score > best.score)) best = h;
+    state.history.forEach(function (record) {
+      var sameCourse = record.courseId
+        ? record.courseId === state.courseId
+        : state.courseId === 'social-culture';
+      if (record.id === id && sameCourse && (best === null || record.score > best.score)) best = record;
     });
     return best;
   }
+  function examStorageId(examId) {
+    return state.courseId === 'social-culture' ? examId : state.courseId + ':' + examId;
+  }
   function loadPen(examId) {
     var all = window.Store ? window.Store.getJSON(PEN_KEY, {}) : {};
-    state.strokes = (all && all[examId]) ? all[examId] : {};
+    var storageId = examStorageId(examId);
+    state.strokes = (all && all[storageId]) ? all[storageId] : {};
   }
   function savePen() {
     if (!window.Store || !state.examId) return;
     var all = window.Store.getJSON(PEN_KEY, {});
-    all[state.examId] = state.strokes;
+    all[examStorageId(state.examId)] = state.strokes;
     window.Store.setJSON(PEN_KEY, all);
   }
 
@@ -133,7 +140,9 @@
     includedIdx(exam).forEach(function (index) {
       var question = exam.questions[index];
       var selected = state.answers[index];
-      var key = exam.id + ':' + question.n;
+      var key = state.courseId === 'social-culture'
+        ? exam.id + ':' + question.n
+        : state.courseId + ':' + exam.id + ':' + question.n;
       var evaluation = window.AssessmentEngine
         ? window.AssessmentEngine.evaluateResponse(question, selected)
         : { status: selected === question.ans ? 'correct' : 'incorrect' };
@@ -144,6 +153,7 @@
       var previous = records[key];
       records[key] = {
         key: key,
+        courseId: state.courseId,
         examId: exam.id,
         examLabel: exam.label,
         questionNumber: question.number || question.n,
@@ -174,7 +184,8 @@
   function clearExamWrongNotes() {
     saveExamWrongNotes({});
   }
-  function retryExam(examId) {
+  function retryExam(examId, courseId) {
+    if (courseId) state.courseId = courseId;
     if (examById(examId)) startExam(examId);
   }
 
@@ -702,7 +713,7 @@
     /* 학습 게임(지식의 탑) 성장 연동 */
     if (window.GameUI) window.GameUI.reportExam({ score: r.score, max: r.max, correct: r.correct, label: e.label });
     loadHistory();
-    state.history.push({ id: state.examId, score: r.score, max: r.max, correct: r.correct, total: r.total, at: Date.now() });
+    state.history.push({ courseId: state.courseId, id: state.examId, score: r.score, max: r.max, correct: r.correct, total: r.total, pendingManual: r.pendingManual || 0, at: Date.now() });
     saveHistory();
     if (window.AppUI) window.AppUI.show('examresult');
   }
