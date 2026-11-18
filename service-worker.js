@@ -1,13 +1,13 @@
 'use strict';
 
-const CACHE_NAME = 'social-culture-study-shell-v19';
+const CACHE_NAME = 'social-culture-study-shell-v21';
 const CORE_ASSETS = [
   './',
   './index.html',
-  './manifest.webmanifest?v=20261116-name-2',
-  './assets/app-icon.svg',
-  './assets/app-icon-192.png',
-  './assets/app-icon-512.png',
+  './manifest.webmanifest?v=20261118-pwa-icons-pen-fix-1',
+  './assets/app-icon.svg?v=20261118-blue-note-gradient-1',
+  './assets/app-icon-192.webp?v=20261118-blue-note-gradient-1',
+  './assets/app-icon-512.webp?v=20261118-blue-note-gradient-1',
   './css/style.css',
   './courses/social-culture/content.js',
   './courses/social-culture/assessments.js',
@@ -27,7 +27,7 @@ const CORE_ASSETS = [
   './js/predict.js',
   './js/assessment-engine.js',
   './js/game.js',
-  './js/pen-tools.js?v=20261117-ai-report-1',
+  './js/pen-tools.js?v=20261118-pen-hover-lock-2',
   './js/exam-app.js?v=20261117-english-image-pen-fix-1',
   './js/analytics.js?v=20261117-learning-analytics-1',
   './js/app.js'

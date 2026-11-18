@@ -341,7 +341,7 @@
       }).join('') + '</span>' +
       '<button type="button" class="pen-tool" data-penundo disabled>실행 취소</button>' +
       '<button type="button" class="pen-tool" data-penredo disabled>다시 실행</button>' +
-      '<button type="button" class="pen-tool" data-penclear>전체 지우기</button>' +
+      '<button type="button" class="pen-tool" data-penclear>필기 전체 삭제</button>' +
       '<span class="pen-input-hint">펜: 필기 · 손가락: 화면 드래그</span>' +
       '</div>';
   }
