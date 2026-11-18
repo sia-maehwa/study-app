@@ -360,8 +360,9 @@ function main() {
   const pwaManifest = JSON.parse(read('manifest.webmanifest'));
   assert(pwaManifest.icons.some(icon => icon.src.startsWith('assets/app-icon-192.webp') && icon.sizes === '192x192') &&
     pwaManifest.icons.some(icon => icon.src.startsWith('assets/app-icon-512.webp') && icon.sizes === '512x512') &&
-    pwaManifest.icons.some(icon => icon.src.startsWith('assets/app-icon.svg')),
-    'The PWA manifest must reference the refreshed blue-and-white icon assets.');
+    pwaManifest.icons.some(icon => icon.src.startsWith('assets/app-icon.svg')) &&
+    read('assets/app-icon.svg').includes('app-icon-512.webp'),
+    'The PWA manifest and SVG fallback must reference the restored original app icon assets.');
     assert(/<link\b(?=[^>]*\brel=["']manifest["'])[^>]*\bhref=["']manifest\.webmanifest(?:\?[^"']*)?["'][^>]*>/i.test(html), 'The PWA manifest link is missing.');
   assert(html.includes("navigator.serviceWorker.register('./service-worker.js'"), 'The PWA service worker registration is missing.');
 
