@@ -237,7 +237,7 @@ function validateRuntimeAssets(exams) {
 
   const pwaFiles = [
     'manifest.webmanifest', 'service-worker.js', 'assets/app-icon.svg',
-    'assets/app-icon-192.png', 'assets/app-icon-512.png'
+    'assets/app-icon-192.webp', 'assets/app-icon-512.webp'
   ];
   for (const file of pwaFiles) {
     const absolute = path.join(root, file);
@@ -357,7 +357,12 @@ function main() {
   assert(assessmentLoadOrder.every(position => position >= 0) &&
     assessmentLoadOrder.every((position, index) => index === 0 || position > assessmentLoadOrder[index - 1]),
     'Course assessments and assessment engine scripts must load before the exam UI.');
-  assert(/<link\b(?=[^>]*\brel=["']manifest["'])[^>]*\bhref=["']manifest\.webmanifest(?:\?[^"']*)?["'][^>]*>/i.test(html), 'The PWA manifest link is missing.');
+  const pwaManifest = JSON.parse(read('manifest.webmanifest'));
+  assert(pwaManifest.icons.some(icon => icon.src.startsWith('assets/app-icon-192.webp') && icon.sizes === '192x192') &&
+    pwaManifest.icons.some(icon => icon.src.startsWith('assets/app-icon-512.webp') && icon.sizes === '512x512') &&
+    pwaManifest.icons.some(icon => icon.src.startsWith('assets/app-icon.svg')),
+    'The PWA manifest must reference the refreshed blue-and-white icon assets.');
+    assert(/<link\b(?=[^>]*\brel=["']manifest["'])[^>]*\bhref=["']manifest\.webmanifest(?:\?[^"']*)?["'][^>]*>/i.test(html), 'The PWA manifest link is missing.');
   assert(html.includes("navigator.serviceWorker.register('./service-worker.js'"), 'The PWA service worker registration is missing.');
 
   const dataCheck = validateQuestionData();
@@ -367,7 +372,7 @@ function main() {
     'The source template must load the local css/style.css file.');
   for (const file of ['courses/social-culture/content.js', 'courses/social-culture/assessments.js', 'courses/english/assessments.js', 'js/course-registry.js', 'js/data.js', 'js/exams.js', 'js/storage.js', 'js/predict.js', 'js/assessment-engine.js', 'js/game.js', 'js/pen-tools.js', 'js/exam-app.js', 'js/app.js']) {
     const scriptRef = file === 'js/pen-tools.js'
-      ? 'src="js/pen-tools.js?v=20261117-pen-hover-lock-blue-icon-1"'
+      ? 'src="js/pen-tools.js?v=20261118-pen-hover-lock-2"'
       : (file === 'js/exam-app.js'
         ? 'src="js/exam-app.js?v=20261117-english-image-pen-fix-1"'
         : (file === 'js/analytics.js'

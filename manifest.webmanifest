@@ -17,19 +17,19 @@
   ],
   "icons": [
     {
-      "src": "assets/app-icon-192.png?v=20261117-blue-gradient-note-1",
+      "src": "assets/app-icon-192.webp?v=20261118-blue-note-gradient-1",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/webp",
       "purpose": "any"
     },
     {
-      "src": "assets/app-icon-512.png?v=20261117-blue-gradient-note-1",
+      "src": "assets/app-icon-512.webp?v=20261118-blue-note-gradient-1",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/webp",
       "purpose": "any"
     },
     {
-      "src": "assets/app-icon.svg?v=20261117-blue-gradient-note-1",
+      "src": "assets/app-icon.svg?v=20261118-blue-note-gradient-1",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
