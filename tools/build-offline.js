@@ -336,7 +336,7 @@ function main() {
     penTools.includes("document.addEventListener('pointerout', onPointerOut, true)") &&
     penTools.includes("root.classList.add('pen-hover-input')") &&
     penTools.includes("root.classList.remove('pen-hover-input')") &&
-    styleSource.includes('.view.pen-surface-root.pen-hover-input'),
+    read('css/style.css').includes('.view.pen-surface-root.pen-hover-input'),
     'Stylus hover must apply touch-action locking before contact and release it on exit.');
   assert(conceptApp.includes('data-penclear') && examApp.includes('data-penclear') &&
     conceptApp.includes('필기 전체 삭제') && examApp.includes('필기 전체 삭제') &&
